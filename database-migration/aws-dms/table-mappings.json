@@ -1,0 +1,26 @@
+{
+  "rules": [
+    {
+      "rule-type": "selection",
+      "rule-id": "1",
+      "rule-name": "include-hr-schema-all-tables",
+      "object-locator": {
+        "schema-name": "ballotonline_hr",
+        "table-name": "%"
+      },
+      "rule-action": "include",
+      "filters": []
+    },
+    {
+      "rule-type": "selection",
+      "rule-id": "2",
+      "rule-name": "exclude-temporary-tables",
+      "object-locator": {
+        "schema-name": "ballotonline_hr",
+        "table-name": "tmp_%"
+      },
+      "rule-action": "exclude",
+      "filters": []
+    }
+  ]
+}
