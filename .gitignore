@@ -1,0 +1,26 @@
+# Credentials and secrets
+.env
+*.env
+*.pem
+*.key
+*.ppk
+credentials
+.aws/
+*secret*
+*password*
+
+# CloudFormation / Terraform local state
+*.tfstate
+*.tfstate.*
+.terraform/
+packaged-*.yaml
+
+# Database dumps
+*.sql.gz
+*.dump
+
+# OS / editor
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
