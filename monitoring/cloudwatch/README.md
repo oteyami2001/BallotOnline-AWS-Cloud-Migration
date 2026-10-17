@@ -2,6 +2,20 @@
 
 Alarms, dashboards, and alert routing for the BallotOnline environment, defined in [`06-monitoring.yaml`](../../infrastructure-as-code/cloudformation/06-monitoring.yaml).
 
+Every alarm and event rule, with its source and whether it is implemented or only recommended, is listed in [`alarms.yaml`](alarms.yaml).
+
+## Where Metrics Come From
+
+| Source | Needs extra setup? | Examples | Provided by |
+|---|---|---|---|
+| **Native AWS metrics** | No: published automatically | EC2 `CPUUtilization`, `StatusCheckFailed_*`, network; Aurora `CPUUtilization`, `DatabaseConnections`, `FreeableMemory`, `AuroraReplicaLagMaximum`, `VolumeBytesUsed`; DMS `CPUUtilization`, `FreeStorageSpace`, `CDCLatencySource/Target`; VPN `TunnelState` | The AWS service |
+| **CloudWatch agent metrics** | Yes: agent installed and configured on each instance | Memory (`mem_used_percent`, `Memory % Committed Bytes In Use`), disk (`used_percent`, `LogicalDisk % Free Space`), swap | [`07-operations.yaml`](../../infrastructure-as-code/cloudformation/07-operations.yaml) via Systems Manager |
+| **Agent log collection** | Yes: same agent | `/var/log/messages`, `/var/log/secure`, Windows System/Application/Security event logs | `07-operations.yaml` |
+| **Service log exports** | Yes: enabled in the template | Aurora error and slow-query logs, DMS task logs, VPC Flow Logs, CloudTrail | `03-aurora`, `04-dms`, `01-network`, `05-governance` |
+| **Log-derived metrics** | Yes: metric filters | `BallotOnline/Security` counts (root use, IAM changes, ...) | `06-monitoring.yaml` |
+
+> EC2 does **not** report memory or disk usage on its own. Before the agent is installed, a migrated server can run out of memory or disk without any alarm firing.
+
 ## Alert Routing
 
 All alarms and events publish to the **`ballotonline-alerts`** SNS topic, which is encrypted with its own KMS key and accepts messages only from CloudWatch and EventBridge in this account. Subscribe operations staff by email (`AlertEmail` parameter) or add chat/paging integrations later.
@@ -48,6 +62,39 @@ Metric filters on the CloudTrail log group (from [`05-governance.yaml`](../../in
 ## Dashboard
 
 **`ballotonline-operations`** shows Aurora CPU, connections, replica lag, and read/write latency; DMS CPU and free storage; and hourly counts of each security event. The stack output `DashboardUrl` links to it.
+
+## Aurora Storage and Availability
+
+- **Storage:** Aurora storage grows automatically (up to 128 TiB), so "disk full" is not the main risk. Watch `VolumeBytesUsed` for unexpected growth and its cost. A budget-based alarm is listed as *recommended* in `alarms.yaml`.
+- **Availability:** the writer and reader run in different Availability Zones. A failover publishes an RDS event, which the `aurora-failover` rule sends to SNS. Applications must connect through the **cluster endpoint**, not an instance endpoint, so they follow the writer after a failover.
+- **Backups:** automated backups give point-in-time recovery for the retention period (7 days in `03-aurora.yaml`). Backup checks are part of the [operating model](../postmigration-operations.md).
+
+## Network and VPC Activity
+
+| Signal | Where | Use |
+|---|---|---|
+| VPN `TunnelState` | `AWS/VPN` metric, `vpn-down` alarm | Hybrid connectivity during migration and for staff access |
+| VPC Flow Logs | `/ballotonline/vpc-flow-logs` | Rejected connections, unexpected destinations, troubleshooting security groups |
+| Security group changes | `security-sg-changes` alarm | Detect unreviewed firewall changes |
+
+Example CloudWatch Logs Insights query for the most frequently rejected connections:
+
+```text
+fields @timestamp, srcAddr, dstAddr, dstPort, action
+| filter action = "REJECT"
+| stats count(*) as rejected by srcAddr, dstAddr, dstPort
+| sort rejected desc
+| limit 20
+```
+
+## Migration Monitoring (DMS and MGN)
+
+| Service | What to watch | How |
+|---|---|---|
+| AWS DMS | Task state, full-load progress, CDC latency, validation failures, instance CPU and storage | Alarms and the `dms-task-state` rule in `06-monitoring.yaml`; DMS console table statistics; [`validation-queries.sql`](../../database-migration/aurora/validation-queries.sql) |
+| AWS MGN | Replication state (`CONTINUOUS`, `STALLED`), lag, backlog, lifecycle state | MGN console or [`mgn-lifecycle.sh status`](../../server-migration/hyper-v-to-aws/scripts/mgn-lifecycle.sh). There is no CloudWatch alarm for MGN in the templates, so it is checked manually during the migration window. |
+
+DMS and MGN alarms only matter while migration is running. Delete the DMS stack and archive the MGN source servers after cutover so they stop costing money and stop raising alarms.
 
 ## Logs
 

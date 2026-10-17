@@ -8,6 +8,12 @@ Security controls for the BallotOnline AWS migration, from identity and network 
 | [`security-checklist.md`](security-checklist.md) | Step-by-step checks before, during, and after migration, plus sign-off |
 | [`iam-policies/`](iam-policies/) | Least-privilege IAM policies (MFA enforcement, migration operator) and an access matrix |
 
+## Project Scope
+
+- **UMGC course project:** security controls (IAM least privilege, MFA, security groups, encryption, logging) were evaluated as part of the BallotOnline design.
+- **This repository:** implements them as CloudFormation templates and IAM policies. The templates, including the governance stack (CloudTrail, GuardDuty, Access Analyzer, Security Hub), **pass `cfn-lint` but have not been deployed to a real AWS account.** The IAM policies were linted with Parliament.
+- **Recommended practice:** the checklist items and the incident response outline.
+
 ## Implemented as Code
 
 | Control Area | CloudFormation Stack |

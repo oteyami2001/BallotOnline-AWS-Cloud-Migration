@@ -16,6 +16,7 @@ End-to-end AWS cloud migration project for BallotOnline, including MySQL-to-Auro
 ## 📑 Table of Contents
 
 - [Project Overview](#-project-overview)
+- [Project Scope and Validation Status](#-project-scope-and-validation-status)
 - [Project Objectives](#-project-objectives)
 - [Migration Architecture](#️-migration-architecture)
 - [Cloud Migration Strategy](#-cloud-migration-strategy)
@@ -47,6 +48,23 @@ The migration focuses on two major workloads:
 2. Migrating **Microsoft Hyper-V virtual servers** hosting infrastructure services to AWS.
 
 The project also covers migration planning, security, automation, monitoring, validation, cutover, rollback, and postmigration optimization.
+
+---
+
+## 🧭 Project Scope and Validation Status
+
+This repository combines work from the UMGC course project with portfolio extensions built afterwards. They are labeled separately so it is clear what was done where.
+
+| Area | UMGC course project | Implemented in this repository | Deployed to a real AWS account from this repo? |
+|---|---|---|---|
+| MySQL → Aurora with AWS DMS | **Performed in the course lab:** endpoints `ccs640mysql` / `ccs640target`, task `ccs640migration` (Full Load), troubleshooting of `DMS-00001` and "No tables were found" | Write-up, source-prep and validation SQL (tested on MySQL 8.0), DMS mappings and settings | No |
+| Hyper-V → EC2 with AWS MGN | Rehost strategy planned | Runbook, agent-install and lifecycle scripts, validation checklist | No |
+| Infrastructure as Code | CloudFormation evaluated for automation | Seven CloudFormation stacks and `deploy.sh`, validated with `cfn-lint` in CI | **No.** Validated only. |
+| Security and governance | Security controls evaluated | Security groups, KMS, IAM policies, CloudTrail, GuardDuty, Access Analyzer, optional Security Hub (`05-governance.yaml`) | **No.** Validated only. |
+| Monitoring and operations | CloudWatch, Systems Manager, and Trusted Advisor evaluated | Alarms, dashboard, event rules, SSM associations, Automation runbook, Trusted Advisor script | **No.** Validated only. |
+| Cutover, rollback, DR | Cutover and rollback strategy planned | Runbooks and checklists in [`cutover-rollback/`](cutover-rollback/) | No production cutover, rollback, or DR test was performed |
+
+**How the code is validated:** every pull request runs `cfn-lint` on all templates, `shellcheck` on shell scripts, JSON and YAML syntax checks, and a Markdown link check ([workflow](.github/workflows/validate.yml)). SQL scripts were tested against a local MySQL 8.0 server, and AWS CLI scripts were checked against the CLI's parameter validation. None of this replaces a real deployment.
 
 ---
 
@@ -251,7 +269,9 @@ AWS CloudFormation is used to automate infrastructure deployment. Four stacks (n
 
 ## 📊 Monitoring and Management
 
-Monitoring is deployed by the [`06-monitoring`](infrastructure-as-code/cloudformation/06-monitoring.yaml) and [`07-operations`](infrastructure-as-code/cloudformation/07-operations.yaml) stacks. See [`monitoring/`](monitoring/) for every alarm, event rule, and Systems Manager association.
+![BallotOnline observability and operations](architecture/diagrams/monitoring-operations.svg)
+
+Monitoring is defined by the [`06-monitoring`](infrastructure-as-code/cloudformation/06-monitoring.yaml) and [`07-operations`](infrastructure-as-code/cloudformation/07-operations.yaml) stacks. See [`monitoring/`](monitoring/) for every alarm, event rule, and Systems Manager association.
 
 ### Amazon CloudWatch
 
@@ -287,6 +307,10 @@ Trusted Advisor is evaluated for recommendations related to:
 
 ## 🔄 Cutover Strategy
 
+![BallotOnline cutover and rollback flow](architecture/diagrams/cutover-rollback-flow.svg)
+
+The full procedure is in [`cutover-rollback/`](cutover-rollback/): a [T-7 days → T+24 hours runbook](cutover-rollback/cutover-runbook.md), a [go/no-go checklist](cutover-rollback/go-no-go-checklist.md), and [post-cutover validation](cutover-rollback/post-cutover-validation.md). These are procedures; no production cutover was performed.
+
 Before production cutover, the migrated environment is validated through:
 
 1. Database validation
@@ -314,6 +338,8 @@ A rollback plan is maintained in case critical problems occur during migration. 
 - Recovery procedures
 
 > The legacy environment should remain available until the AWS environment has been fully validated.
+
+Once users write to Aurora, rollback means bringing that data back to MySQL first. See the [rollback plan](cutover-rollback/rollback-plan.md#data-consistency-after-cutover). Recovery after go-live is covered in [disaster recovery](cutover-rollback/disaster-recovery.md) and [business continuity](cutover-rollback/business-continuity.md).
 
 ---
 
@@ -376,12 +402,19 @@ BallotOnline-AWS-Cloud-Migration/
 │   └── iam-policies/
 │
 ├── monitoring/
-│   ├── cloudwatch/
-│   ├── systems-manager/
-│   └── trusted-advisor/
+│   ├── cloudwatch/              # alarm catalog, metrics, logs
+│   ├── systems-manager/         # SSM capabilities, Automation runbook
+│   ├── trusted-advisor/         # evaluation, report script
+│   ├── postmigration-operations.md
+│   └── operational-checklist.md
 │
 ├── cutover-rollback/
-│   └── strategy.md
+│   ├── cutover-runbook.md       # T-7 days → T+24 hours
+│   ├── go-no-go-checklist.md
+│   ├── rollback-plan.md
+│   ├── post-cutover-validation.md
+│   ├── disaster-recovery.md
+│   └── business-continuity.md
 │
 ├── screenshots/
 │

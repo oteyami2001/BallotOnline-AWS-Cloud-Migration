@@ -1,0 +1,84 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1400" height="700" viewBox="0 0 1400 700" font-family="Arial, Helvetica, sans-serif">
+<defs><marker id="mk" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0,0 L10,5 L0,10 z" fill="#545B64"/></marker><marker id="mb" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0,0 L10,5 L0,10 z" fill="#1A73E8"/></marker><marker id="mg" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0,0 L10,5 L0,10 z" fill="#01A88D"/></marker><marker id="mp" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0,0 L10,5 L0,10 z" fill="#E7157B"/></marker><marker id="mr" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0,0 L10,5 L0,10 z" fill="#D13212"/></marker><marker id="mo" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0,0 L10,5 L0,10 z" fill="#ED7100"/></marker></defs>
+<rect width="1400" height="700" fill="#FFFFFF"/>
+<text x="700" y="38" font-size="22" font-weight="bold" fill="#232F3E" text-anchor="middle" >BallotOnline Cutover &amp; Rollback Flow</text>
+<text x="700" y="62" font-size="13" font-weight="normal" fill="#545B64" text-anchor="middle" >On-premises → synchronization → go/no-go → AWS production, with a rollback path and post-cutover validation</text>
+<rect x="1135" y="76" width="235" height="22" rx="11" fill="#FFF8E6" stroke="#B8860B"/>
+<text x="1252" y="91" font-size="10.5" font-weight="bold" fill="#8A6500" text-anchor="middle" >Procedure · not executed in production</text>
+<polygon points="30,108 216,108 228,125.0 216,142 30,142" fill="#E6F2F8" stroke="#147EBA" stroke-width="1"/>
+<text x="125.0" y="130" font-size="12" font-weight="bold" fill="#0B5394" text-anchor="middle" >T-7 days</text>
+<polygon points="220,108 406,108 418,125.0 406,142 220,142 232,125.0" fill="#E6F2F8" stroke="#147EBA" stroke-width="1"/>
+<text x="321.0" y="130" font-size="12" font-weight="bold" fill="#0B5394" text-anchor="middle" >T-24 hours</text>
+<polygon points="410,108 596,108 608,125.0 596,142 410,142 422,125.0" fill="#E6F2F8" stroke="#147EBA" stroke-width="1"/>
+<text x="511.0" y="130" font-size="12" font-weight="bold" fill="#0B5394" text-anchor="middle" >T-1 hour</text>
+<polygon points="600,108 786,108 798,125.0 786,142 600,142 612,125.0" fill="#FFF3E6" stroke="#147EBA" stroke-width="1"/>
+<text x="701.0" y="130" font-size="12" font-weight="bold" fill="#0B5394" text-anchor="middle" >T0 cutover</text>
+<polygon points="790,108 976,108 988,125.0 976,142 790,142 802,125.0" fill="#E6F2F8" stroke="#147EBA" stroke-width="1"/>
+<text x="891.0" y="130" font-size="12" font-weight="bold" fill="#0B5394" text-anchor="middle" >T+1 hour</text>
+<polygon points="980,108 1166,108 1178,125.0 1166,142 980,142 992,125.0" fill="#E6F2F8" stroke="#147EBA" stroke-width="1"/>
+<text x="1081.0" y="130" font-size="12" font-weight="bold" fill="#0B5394" text-anchor="middle" >T+24 hours</text>
+<polygon points="1170,108 1356,108 1368,125.0 1356,142 1170,142 1182,125.0" fill="#E6F2F8" stroke="#147EBA" stroke-width="1"/>
+<text x="1271.0" y="130" font-size="12" font-weight="bold" fill="#0B5394" text-anchor="middle" >Finalize</text>
+<rect x="30" y="175" width="260" height="280" rx="4" fill="#F7F8F8" stroke="#545B64" stroke-width="1.5" stroke-dasharray="6 4"/>
+<text x="40" y="193" font-size="12" font-weight="bold" fill="#232F3E" text-anchor="start" >BallotOnline On-Premises</text>
+<rect x="55.0" y="220.0" width="40" height="40" rx="6" fill="#5A6B7B"/>
+<text x="75" y="244.5" font-size="12" font-weight="bold" fill="#FFFFFF" text-anchor="middle" >SQL</text>
+<text x="105" y="236" font-size="12" font-weight="bold" fill="#232F3E" text-anchor="start" >MySQL HR database</text>
+<text x="105" y="252" font-size="11" font-weight="normal" fill="#545B64" text-anchor="start" >read-only from T0</text>
+<rect x="55.0" y="300.0" width="40" height="40" rx="6" fill="#5A6B7B"/>
+<text x="75" y="324.5" font-size="12" font-weight="bold" fill="#FFFFFF" text-anchor="middle" >HV</text>
+<text x="105" y="316" font-size="12" font-weight="bold" fill="#232F3E" text-anchor="start" >Hyper-V VMs</text>
+<text x="105" y="332" font-size="11" font-weight="normal" fill="#545B64" text-anchor="start" >Intranet · FTP · NTP</text>
+<text x="50" y="390" font-size="11" font-weight="normal" fill="#545B64" text-anchor="start" >Kept intact until the</text>
+<text x="50" y="406" font-size="11" font-weight="normal" fill="#545B64" text-anchor="start" >rollback window closes</text>
+<text x="50" y="422" font-size="11" font-weight="normal" fill="#545B64" text-anchor="start" >(VMs powered off, DB read-only)</text>
+<rect x="340" y="175" width="270" height="280" rx="4" fill="#E6F7F4" stroke="#01A88D" stroke-width="1.5"/>
+<text x="350" y="193" font-size="12" font-weight="bold" fill="#017A67" text-anchor="start" >Synchronization &amp; Replication</text>
+<rect x="365.0" y="220.0" width="40" height="40" rx="6" fill="#01A88D"/>
+<text x="385" y="244.5" font-size="12" font-weight="bold" fill="#FFFFFF" text-anchor="middle" >DMS</text>
+<text x="415" y="236" font-size="12" font-weight="bold" fill="#232F3E" text-anchor="start" >AWS DMS</text>
+<text x="415" y="252" font-size="11" font-weight="normal" fill="#545B64" text-anchor="start" >Full Load + CDC → final sync</text>
+<rect x="365.0" y="300.0" width="40" height="40" rx="6" fill="#01A88D"/>
+<text x="385" y="324.5" font-size="12" font-weight="bold" fill="#FFFFFF" text-anchor="middle" >MGN</text>
+<text x="415" y="316" font-size="12" font-weight="bold" fill="#232F3E" text-anchor="start" >AWS MGN</text>
+<text x="415" y="332" font-size="11" font-weight="normal" fill="#545B64" text-anchor="start" >continuous block replication</text>
+<text x="360" y="390" font-size="11" font-weight="bold" fill="#017A67" text-anchor="start" >Validation before the decision:</text>
+<text x="360" y="406" font-size="11" font-weight="normal" fill="#545B64" text-anchor="start" >validation-queries.sql · test launches</text>
+<text x="360" y="422" font-size="11" font-weight="normal" fill="#545B64" text-anchor="start" >server validation checklist</text>
+<polygon points="715,245 785,315 715,385 645,315" fill="#FFF3E6" stroke="#ED7100" stroke-width="2"/>
+<text x="715" y="311" font-size="13" font-weight="bold" fill="#B85A00" text-anchor="middle" >GO / NO-GO</text>
+<text x="715" y="328" font-size="11" font-weight="normal" fill="#545B64" text-anchor="middle" >T-1 hour</text>
+<rect x="820" y="175" width="550" height="280" rx="4" fill="#F0FAFA" stroke="#00A4A6" stroke-width="1.5"/>
+<text x="830" y="193" font-size="12" font-weight="bold" fill="#007E80" text-anchor="start" >AWS Production</text>
+<rect x="850.0" y="220.0" width="40" height="40" rx="6" fill="#C925D1"/>
+<text x="870" y="244.5" font-size="12" font-weight="bold" fill="#FFFFFF" text-anchor="middle" >RDS</text>
+<text x="900" y="236" font-size="12" font-weight="bold" fill="#232F3E" text-anchor="start" >Aurora MySQL (cluster endpoint)</text>
+<text x="900" y="252" font-size="11" font-weight="normal" fill="#545B64" text-anchor="start" >writer AZ A · reader AZ B · PITR backups</text>
+<rect x="850.0" y="300.0" width="40" height="40" rx="6" fill="#ED7100"/>
+<text x="870" y="324.5" font-size="12" font-weight="bold" fill="#FFFFFF" text-anchor="middle" >EC2</text>
+<text x="900" y="316" font-size="12" font-weight="bold" fill="#232F3E" text-anchor="start" >EC2: Intranet · SFTP · NTP</text>
+<text x="900" y="332" font-size="11" font-weight="normal" fill="#545B64" text-anchor="start" >MGN cutover instances, private subnets, SSM</text>
+<rect x="850.0" y="380.0" width="40" height="40" rx="6" fill="#8C4FFF"/>
+<text x="870" y="404.5" font-size="12" font-weight="bold" fill="#FFFFFF" text-anchor="middle" >DNS</text>
+<text x="900" y="396" font-size="12" font-weight="bold" fill="#232F3E" text-anchor="start" >DNS and application connections switched</text>
+<text x="900" y="412" font-size="11" font-weight="normal" fill="#545B64" text-anchor="start" >low TTLs set at T-7 days</text>
+<path d="M290,300 L338,300" fill="none" stroke="#545B64" stroke-width="2" marker-end="url(#mk)"/>
+<path d="M610,315 L643,315" fill="none" stroke="#545B64" stroke-width="2" marker-end="url(#mk)"/>
+<path d="M785,315 L818,315" fill="none" stroke="#01A88D" stroke-width="2.5" marker-end="url(#mg)"/>
+<rect x="786.7" y="281" width="26.6" height="18" rx="9" fill="#FFFFFF" stroke="#01A88D" stroke-width="1"/>
+<text x="800" y="294" font-size="11" font-weight="bold" fill="#01A88D" text-anchor="middle" >GO</text>
+<path d="M715,385 L715,475" fill="none" stroke="#ED7100" stroke-width="2" marker-end="url(#mo)"/>
+<rect x="620" y="477" width="190" height="48" rx="6" fill="#FFF3E6" stroke="#ED7100" stroke-width="1.5"/>
+<text x="715" y="497" font-size="12" font-weight="bold" fill="#B85A00" text-anchor="middle" >NO-GO: stay on source</text>
+<text x="715" y="513" font-size="11" font-weight="normal" fill="#545B64" text-anchor="middle" >keep replicating, reschedule</text>
+<path d="M870,455 L870,560 L160,560 L160,457" fill="none" stroke="#D13212" stroke-width="2.5" stroke-dasharray="7 4" marker-end="url(#mr)"/>
+<rect x="250" y="538" width="520" height="44" rx="6" fill="#FDF3F1" stroke="#D13212" stroke-width="1.5"/>
+<text x="510" y="556" font-size="12" font-weight="bold" fill="#D13212" text-anchor="middle" >ROLLBACK: revert DNS and app connection, start VMs, lift read-only</text>
+<text x="510" y="573" font-size="11" font-weight="normal" fill="#545B64" text-anchor="middle" >After users write to Aurora: reverse sync or replay first (decision deadline)</text>
+<path d="M1120,455 L1120,598" fill="none" stroke="#E7157B" stroke-width="2" marker-end="url(#mp)"/>
+<rect x="900" y="600" width="470" height="88" rx="6" fill="#FDF0F6" stroke="#E7157B" stroke-width="1.5" stroke-dasharray="6 4"/>
+<text x="915" y="622" font-size="13" font-weight="bold" fill="#B0105E" text-anchor="start" >Post-cutover monitoring &amp; validation (T+1h → T+24h)</text>
+<text x="915" y="642" font-size="11" font-weight="normal" fill="#545B64" text-anchor="start" >Aurora: validation-queries.sql · EC2: server checklist, health-check runbook</text>
+<text x="915" y="658" font-size="11" font-weight="normal" fill="#545B64" text-anchor="start" >CloudWatch alarms + dashboard · SNS · GuardDuty · security checklist</text>
+<text x="915" y="674" font-size="11" font-weight="normal" fill="#545B64" text-anchor="start" >Operational sign-off → finalize MGN, delete DMS, decommission source</text>
+</svg>

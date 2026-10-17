@@ -1,0 +1,141 @@
+description: |-
+  # BallotOnline - Instance Health Check and Diagnostics
+
+  **Read-only.** Checks that a migrated EC2 instance is running, passes its
+  status checks, and is online in Systems Manager, then collects basic
+  diagnostics (uptime, CPU load, memory, disk, key services, time sync).
+
+  It changes nothing on the instance: no restarts, no package changes, no
+  configuration edits. Use it during post-cutover validation and as the
+  first step when an alarm fires.
+
+  Register it with:
+
+  `aws ssm create-document --name BallotOnline-InstanceHealthCheck --document-type Automation --document-format YAML --content file://automation-runbook.yaml`
+schemaVersion: "0.3"
+assumeRole: "{{ AutomationAssumeRole }}"
+parameters:
+  InstanceId:
+    type: String
+    description: (Required) ID of the migrated EC2 instance to check.
+    allowedPattern: "^i-[a-z0-9]{8,17}$"
+  AutomationAssumeRole:
+    type: String
+    description: >-
+      (Optional) ARN of an IAM role with ec2:DescribeInstances,
+      ec2:DescribeInstanceStatus, ssm:DescribeInstanceInformation,
+      ssm:SendCommand, and ssm:GetCommandInvocation. Leave blank to use the
+      caller's permissions.
+    default: ""
+mainSteps:
+  - name: GetInstanceStatus
+    action: aws:executeAwsApi
+    description: Read the EC2 instance state and status checks.
+    inputs:
+      Service: ec2
+      Api: DescribeInstanceStatus
+      InstanceIds:
+        - "{{ InstanceId }}"
+      IncludeAllInstances: true
+    outputs:
+      - Name: InstanceState
+        Selector: "$.InstanceStatuses[0].InstanceState.Name"
+        Type: String
+      - Name: SystemStatus
+        Selector: "$.InstanceStatuses[0].SystemStatus.Status"
+        Type: String
+      - Name: InstanceStatus
+        Selector: "$.InstanceStatuses[0].InstanceStatus.Status"
+        Type: String
+
+  - name: AssertInstanceRunning
+    action: aws:assertAwsResourceProperty
+    description: Stop here if the instance is not running.
+    inputs:
+      Service: ec2
+      Api: DescribeInstances
+      InstanceIds:
+        - "{{ InstanceId }}"
+      PropertySelector: "$.Reservations[0].Instances[0].State.Name"
+      DesiredValues:
+        - running
+
+  - name: AssertManagedBySsm
+    action: aws:assertAwsResourceProperty
+    description: Stop here if the SSM Agent is not online (check instance profile and outbound HTTPS).
+    inputs:
+      Service: ssm
+      Api: DescribeInstanceInformation
+      Filters:
+        - Key: InstanceIds
+          Values:
+            - "{{ InstanceId }}"
+      PropertySelector: "$.InstanceInformationList[0].PingStatus"
+      DesiredValues:
+        - Online
+
+  - name: GetPlatform
+    action: aws:executeAwsApi
+    description: Find out whether the instance runs Linux or Windows.
+    inputs:
+      Service: ssm
+      Api: DescribeInstanceInformation
+      Filters:
+        - Key: InstanceIds
+          Values:
+            - "{{ InstanceId }}"
+    outputs:
+      - Name: PlatformType
+        Selector: "$.InstanceInformationList[0].PlatformType"
+        Type: String
+
+  - name: ChoosePlatform
+    action: aws:branch
+    inputs:
+      Choices:
+        - NextStep: CollectWindowsDiagnostics
+          Variable: "{{ GetPlatform.PlatformType }}"
+          StringEquals: Windows
+      Default: CollectLinuxDiagnostics
+
+  - name: CollectLinuxDiagnostics
+    action: aws:runCommand
+    description: Read-only diagnostics on Linux.
+    isEnd: true
+    inputs:
+      DocumentName: AWS-RunShellScript
+      InstanceIds:
+        - "{{ InstanceId }}"
+      TimeoutSeconds: 120
+      Parameters:
+        commands:
+          - echo "== Host"; hostname; uptime
+          - echo "== Memory"; free -m
+          - echo "== Disk"; df -h -x tmpfs -x devtmpfs
+          - echo "== Services"; for s in sshd chronyd amazon-ssm-agent amazon-cloudwatch-agent httpd nginx vsftpd; do systemctl is-active --quiet "$s" && echo "$s active" || echo "$s not active"; done
+          - echo "== Time sync"; (chronyc tracking 2>/dev/null || timedatectl status)
+          - echo "== Listening ports"; ss -tlnu
+
+  - name: CollectWindowsDiagnostics
+    action: aws:runCommand
+    description: Read-only diagnostics on Windows.
+    isEnd: true
+    inputs:
+      DocumentName: AWS-RunPowerShellScript
+      InstanceIds:
+        - "{{ InstanceId }}"
+      TimeoutSeconds: 120
+      Parameters:
+        commands:
+          - Write-Output "== Host"; hostname; (Get-CimInstance Win32_OperatingSystem).LastBootUpTime
+          - Write-Output "== Memory"; Get-CimInstance Win32_OperatingSystem | Select-Object FreePhysicalMemory, TotalVisibleMemorySize
+          - Write-Output "== Disk"; Get-Volume | Where-Object DriveLetter | Select-Object DriveLetter, SizeRemaining, Size
+          - Write-Output "== Services"; Get-Service W3SVC, AmazonSSMAgent, AmazonCloudWatchAgent, W32Time -ErrorAction SilentlyContinue | Select-Object Name, Status
+          - Write-Output "== Time sync"; w32tm /query /status
+          - Write-Output "== Listening ports"; Get-NetTCPConnection -State Listen | Select-Object LocalAddress, LocalPort -Unique
+
+outputs:
+  - GetInstanceStatus.InstanceState
+  - GetInstanceStatus.SystemStatus
+  - GetInstanceStatus.InstanceStatus
+  - GetPlatform.PlatformType
