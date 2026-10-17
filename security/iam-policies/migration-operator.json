@@ -1,0 +1,121 @@
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Sid": "ListMigrationState",
+      "Effect": "Allow",
+      "Action": [
+        "dms:DescribeReplicationInstances",
+        "dms:DescribeEndpoints",
+        "dms:DescribeConnections",
+        "dms:DescribeReplicationTasks",
+        "dms:DescribeReplicationTaskAssessmentRuns",
+        "mgn:DescribeSourceServers",
+        "mgn:DescribeJobs",
+        "ec2:DescribeInstances",
+        "ec2:DescribeInstanceStatus"
+      ],
+      "Resource": "*"
+    },
+    {
+      "Sid": "ReadProjectStacks",
+      "Effect": "Allow",
+      "Action": [
+        "cloudformation:DescribeStacks",
+        "cloudformation:DescribeStackEvents",
+        "cloudformation:ListStackResources"
+      ],
+      "Resource": "arn:aws:cloudformation:*:*:stack/ballotonline-*/*"
+    },
+    {
+      "Sid": "ReadDmsTaskDetailsAndLogs",
+      "Effect": "Allow",
+      "Action": [
+        "dms:DescribeTableStatistics",
+        "logs:DescribeLogStreams",
+        "logs:GetLogEvents",
+        "logs:FilterLogEvents"
+      ],
+      "Resource": [
+        "arn:aws:dms:*:*:task:*",
+        "arn:aws:logs:*:*:log-group:dms-tasks-*"
+      ]
+    },
+    {
+      "Sid": "ReadMgnServerDetails",
+      "Effect": "Allow",
+      "Action": [
+        "mgn:GetLaunchConfiguration",
+        "mgn:GetReplicationConfiguration",
+        "mgn:DescribeJobLogItems"
+      ],
+      "Resource": [
+        "arn:aws:mgn:*:*:source-server/*",
+        "arn:aws:mgn:*:*:job/*"
+      ]
+    },
+    {
+      "Sid": "RunDmsMigrationOnProjectResources",
+      "Effect": "Allow",
+      "Action": [
+        "dms:TestConnection",
+        "dms:StartReplicationTask",
+        "dms:StopReplicationTask",
+        "dms:StartReplicationTaskAssessmentRun",
+        "dms:ReloadTables"
+      ],
+      "Resource": [
+        "arn:aws:dms:*:*:task:*",
+        "arn:aws:dms:*:*:endpoint:*",
+        "arn:aws:dms:*:*:rep:*"
+      ],
+      "Condition": {
+        "StringEquals": {
+          "aws:ResourceTag/Project": "BallotOnline"
+        },
+        "Bool": {
+          "aws:MultiFactorAuthPresent": "true"
+        }
+      }
+    },
+    {
+      "Sid": "RunMgnLifecycleOnProjectServers",
+      "Effect": "Allow",
+      "Action": [
+        "mgn:StartTest",
+        "mgn:TerminateTargetInstances",
+        "mgn:ChangeServerLifeCycleState",
+        "mgn:StartCutover",
+        "mgn:FinalizeCutover",
+        "mgn:MarkAsArchived"
+      ],
+      "Resource": "arn:aws:mgn:*:*:source-server/*",
+      "Condition": {
+        "StringEquals": {
+          "aws:ResourceTag/Project": "BallotOnline"
+        },
+        "Bool": {
+          "aws:MultiFactorAuthPresent": "true"
+        }
+      }
+    },
+    {
+      "Sid": "DenyDestructiveActions",
+      "Effect": "Deny",
+      "Action": [
+        "rds:DeleteDBCluster",
+        "rds:DeleteDBInstance",
+        "rds:ModifyDBCluster",
+        "dms:DeleteEndpoint",
+        "dms:DeleteReplicationInstance",
+        "dms:DeleteReplicationTask",
+        "kms:ScheduleKeyDeletion",
+        "kms:DisableKey",
+        "cloudtrail:StopLogging",
+        "cloudtrail:DeleteTrail",
+        "guardduty:DeleteDetector"
+      ],
+      "Resource": "*"
+    }
+  ]
+}
