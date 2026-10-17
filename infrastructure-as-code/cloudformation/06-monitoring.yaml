@@ -1,0 +1,677 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Description: >-
+  BallotOnline migration - Monitoring and alerting. Encrypted SNS alert topic,
+  CloudWatch alarms for Aurora, DMS, VPN, and migrated EC2 servers, CIS-style
+  security alarms on CloudTrail logs, EventBridge rules for GuardDuty, RDS,
+  and DMS events, and an operations dashboard.
+
+Metadata:
+  AWS::CloudFormation::Interface:
+    ParameterGroups:
+      - Label: { default: General }
+        Parameters: [EnvironmentName, AlertEmail]
+      - Label: { default: Thresholds }
+        Parameters: [CpuThresholdPercent, MaxDatabaseConnections, ReplicaLagThresholdMs, CdcLatencyThresholdSeconds]
+      - Label: { default: Optional resources (leave blank to skip their alarms) }
+        Parameters: [DmsTaskResourceId, VpnConnectionId, IntranetInstanceId, FtpInstanceId, NtpInstanceId]
+
+Parameters:
+  EnvironmentName:
+    Type: String
+    Default: ballotonline
+    AllowedPattern: "^[a-z][a-z0-9-]{1,30}$"
+  AlertEmail:
+    Type: String
+    Default: ""
+    Description: Email address for alerts (confirm the subscription email). Leave blank to subscribe later.
+  CpuThresholdPercent:
+    Type: Number
+    Default: 80
+    MinValue: 1
+    MaxValue: 100
+  MaxDatabaseConnections:
+    Type: Number
+    Default: 80
+    Description: Alarm when Aurora connections exceed this value (db.t4g.medium allows about 90).
+  ReplicaLagThresholdMs:
+    Type: Number
+    Default: 1000
+  CdcLatencyThresholdSeconds:
+    Type: Number
+    Default: 60
+  DmsTaskResourceId:
+    Type: String
+    Default: ""
+    Description: Resource ID of the DMS task (last part of its ARN) for CDC latency alarms.
+  VpnConnectionId:
+    Type: String
+    Default: ""
+    Description: Site-to-Site VPN connection ID (vpn-...) for the tunnel alarm.
+  IntranetInstanceId:
+    Type: String
+    Default: ""
+    Description: EC2 instance ID of the migrated Intranet server.
+  FtpInstanceId:
+    Type: String
+    Default: ""
+    Description: EC2 instance ID of the migrated FTP server.
+  NtpInstanceId:
+    Type: String
+    Default: ""
+    Description: EC2 instance ID of the migrated NTP server.
+
+Conditions:
+  WithEmail: !Not [!Equals [!Ref AlertEmail, ""]]
+  WithDmsTask: !Not [!Equals [!Ref DmsTaskResourceId, ""]]
+  WithVpn: !Not [!Equals [!Ref VpnConnectionId, ""]]
+  WithIntranet: !Not [!Equals [!Ref IntranetInstanceId, ""]]
+  WithFtp: !Not [!Equals [!Ref FtpInstanceId, ""]]
+  WithNtp: !Not [!Equals [!Ref NtpInstanceId, ""]]
+
+Resources:
+  # ------------------------------------------------------------------
+  # Alert topic (encrypted; CloudWatch and EventBridge may publish)
+  # ------------------------------------------------------------------
+  AlertKey:
+    Type: AWS::KMS::Key
+    DeletionPolicy: Delete
+    UpdateReplacePolicy: Delete
+    Properties:
+      Description: !Sub "${EnvironmentName} alert topic encryption key"
+      EnableKeyRotation: true
+      PendingWindowInDays: 7
+      KeyPolicy:
+        Version: "2012-10-17"
+        Statement:
+          - Sid: AccountAdministration
+            Effect: Allow
+            Principal: { AWS: !Sub "arn:${AWS::Partition}:iam::${AWS::AccountId}:root" }
+            Action: kms:*
+            Resource: "*"
+          - Sid: AllowAlarmAndEventPublishers
+            Effect: Allow
+            Principal:
+              Service:
+                - cloudwatch.amazonaws.com
+                - events.amazonaws.com
+            Action:
+              - kms:Decrypt
+              - kms:GenerateDataKey*
+            Resource: "*"
+
+  AlertTopic:
+    Type: AWS::SNS::Topic
+    Properties:
+      TopicName: !Sub "${EnvironmentName}-alerts"
+      DisplayName: BallotOnline Alerts
+      KmsMasterKeyId: !Ref AlertKey
+
+  AlertTopicPolicy:
+    Type: AWS::SNS::TopicPolicy
+    Properties:
+      Topics: [!Ref AlertTopic]
+      PolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Sid: AllowCloudWatchAndEventBridge
+            Effect: Allow
+            Principal:
+              Service:
+                - cloudwatch.amazonaws.com
+                - events.amazonaws.com
+            Action: sns:Publish
+            Resource: !Ref AlertTopic
+            Condition:
+              StringEquals:
+                aws:SourceAccount: !Ref AWS::AccountId
+
+  AlertEmailSubscription:
+    Type: AWS::SNS::Subscription
+    Condition: WithEmail
+    Properties:
+      TopicArn: !Ref AlertTopic
+      Protocol: email
+      Endpoint: !Ref AlertEmail
+
+  # ------------------------------------------------------------------
+  # Aurora MySQL (cluster-level metrics)
+  # ------------------------------------------------------------------
+  AuroraCpuAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmName: !Sub "${EnvironmentName}-aurora-cpu-high"
+      AlarmDescription: Aurora CPU above threshold for 15 minutes.
+      Namespace: AWS/RDS
+      MetricName: CPUUtilization
+      Dimensions:
+        - Name: DBClusterIdentifier
+          Value: { "Fn::ImportValue": !Sub "${EnvironmentName}-AuroraClusterId" }
+      Statistic: Average
+      Period: 300
+      EvaluationPeriods: 3
+      Threshold: !Ref CpuThresholdPercent
+      ComparisonOperator: GreaterThanThreshold
+      TreatMissingData: missing
+      AlarmActions: [!Ref AlertTopic]
+      OKActions: [!Ref AlertTopic]
+
+  AuroraConnectionsAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmName: !Sub "${EnvironmentName}-aurora-connections-high"
+      AlarmDescription: Aurora connections close to the instance limit.
+      Namespace: AWS/RDS
+      MetricName: DatabaseConnections
+      Dimensions:
+        - Name: DBClusterIdentifier
+          Value: { "Fn::ImportValue": !Sub "${EnvironmentName}-AuroraClusterId" }
+      Statistic: Maximum
+      Period: 300
+      EvaluationPeriods: 2
+      Threshold: !Ref MaxDatabaseConnections
+      ComparisonOperator: GreaterThanThreshold
+      TreatMissingData: missing
+      AlarmActions: [!Ref AlertTopic]
+      OKActions: [!Ref AlertTopic]
+
+  AuroraMemoryAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmName: !Sub "${EnvironmentName}-aurora-memory-low"
+      AlarmDescription: Aurora freeable memory below 256 MB.
+      Namespace: AWS/RDS
+      MetricName: FreeableMemory
+      Dimensions:
+        - Name: DBClusterIdentifier
+          Value: { "Fn::ImportValue": !Sub "${EnvironmentName}-AuroraClusterId" }
+      Statistic: Minimum
+      Period: 300
+      EvaluationPeriods: 3
+      Threshold: 268435456
+      ComparisonOperator: LessThanThreshold
+      TreatMissingData: missing
+      AlarmActions: [!Ref AlertTopic]
+      OKActions: [!Ref AlertTopic]
+
+  AuroraReplicaLagAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmName: !Sub "${EnvironmentName}-aurora-replica-lag"
+      AlarmDescription: Aurora reader lagging behind the writer.
+      Namespace: AWS/RDS
+      MetricName: AuroraReplicaLagMaximum
+      Dimensions:
+        - Name: DBClusterIdentifier
+          Value: { "Fn::ImportValue": !Sub "${EnvironmentName}-AuroraClusterId" }
+      Statistic: Maximum
+      Period: 60
+      EvaluationPeriods: 5
+      Threshold: !Ref ReplicaLagThresholdMs
+      ComparisonOperator: GreaterThanThreshold
+      TreatMissingData: notBreaching
+      AlarmActions: [!Ref AlertTopic]
+      OKActions: [!Ref AlertTopic]
+
+  # ------------------------------------------------------------------
+  # AWS DMS (during migration)
+  # ------------------------------------------------------------------
+  DmsCpuAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmName: !Sub "${EnvironmentName}-dms-cpu-high"
+      AlarmDescription: DMS replication instance CPU above threshold.
+      Namespace: AWS/DMS
+      MetricName: CPUUtilization
+      Dimensions:
+        - Name: ReplicationInstanceIdentifier
+          Value: !Sub "${EnvironmentName}-dms"
+      Statistic: Average
+      Period: 300
+      EvaluationPeriods: 3
+      Threshold: !Ref CpuThresholdPercent
+      ComparisonOperator: GreaterThanThreshold
+      TreatMissingData: notBreaching
+      AlarmActions: [!Ref AlertTopic]
+
+  DmsStorageAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmName: !Sub "${EnvironmentName}-dms-storage-low"
+      AlarmDescription: DMS replication instance has less than 10 GB free storage.
+      Namespace: AWS/DMS
+      MetricName: FreeStorageSpace
+      Dimensions:
+        - Name: ReplicationInstanceIdentifier
+          Value: !Sub "${EnvironmentName}-dms"
+      Statistic: Minimum
+      Period: 300
+      EvaluationPeriods: 2
+      Threshold: 10737418240
+      ComparisonOperator: LessThanThreshold
+      TreatMissingData: notBreaching
+      AlarmActions: [!Ref AlertTopic]
+
+  DmsCdcSourceLatencyAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Condition: WithDmsTask
+    Properties:
+      AlarmName: !Sub "${EnvironmentName}-dms-cdc-source-latency"
+      AlarmDescription: DMS is falling behind reading changes from the source MySQL.
+      Namespace: AWS/DMS
+      MetricName: CDCLatencySource
+      Dimensions:
+        - Name: ReplicationInstanceIdentifier
+          Value: !Sub "${EnvironmentName}-dms"
+        - Name: ReplicationTaskIdentifier
+          Value: !Ref DmsTaskResourceId
+      Statistic: Average
+      Period: 300
+      EvaluationPeriods: 3
+      Threshold: !Ref CdcLatencyThresholdSeconds
+      ComparisonOperator: GreaterThanThreshold
+      TreatMissingData: notBreaching
+      AlarmActions: [!Ref AlertTopic]
+
+  DmsCdcTargetLatencyAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Condition: WithDmsTask
+    Properties:
+      AlarmName: !Sub "${EnvironmentName}-dms-cdc-target-latency"
+      AlarmDescription: DMS is falling behind applying changes to Aurora.
+      Namespace: AWS/DMS
+      MetricName: CDCLatencyTarget
+      Dimensions:
+        - Name: ReplicationInstanceIdentifier
+          Value: !Sub "${EnvironmentName}-dms"
+        - Name: ReplicationTaskIdentifier
+          Value: !Ref DmsTaskResourceId
+      Statistic: Average
+      Period: 300
+      EvaluationPeriods: 3
+      Threshold: !Ref CdcLatencyThresholdSeconds
+      ComparisonOperator: GreaterThanThreshold
+      TreatMissingData: notBreaching
+      AlarmActions: [!Ref AlertTopic]
+
+  # ------------------------------------------------------------------
+  # Site-to-Site VPN
+  # ------------------------------------------------------------------
+  VpnTunnelDownAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Condition: WithVpn
+    Properties:
+      AlarmName: !Sub "${EnvironmentName}-vpn-down"
+      AlarmDescription: All VPN tunnels to the BallotOnline office are down.
+      Namespace: AWS/VPN
+      MetricName: TunnelState
+      Dimensions:
+        - Name: VpnId
+          Value: !Ref VpnConnectionId
+      Statistic: Maximum
+      Period: 300
+      EvaluationPeriods: 2
+      Threshold: 1
+      ComparisonOperator: LessThanThreshold
+      TreatMissingData: breaching
+      AlarmActions: [!Ref AlertTopic]
+      OKActions: [!Ref AlertTopic]
+
+  # ------------------------------------------------------------------
+  # Migrated EC2 servers: auto-recover on host failure, alert on CPU
+  # ------------------------------------------------------------------
+  IntranetRecoverAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Condition: WithIntranet
+    Properties:
+      AlarmName: !Sub "${EnvironmentName}-intranet-system-check"
+      AlarmDescription: Intranet host failure - recover the instance automatically.
+      Namespace: AWS/EC2
+      MetricName: StatusCheckFailed_System
+      Dimensions: [{ Name: InstanceId, Value: !Ref IntranetInstanceId }]
+      Statistic: Maximum
+      Period: 60
+      EvaluationPeriods: 2
+      Threshold: 1
+      ComparisonOperator: GreaterThanOrEqualToThreshold
+      AlarmActions:
+        - !Sub "arn:${AWS::Partition}:automate:${AWS::Region}:ec2:recover"
+        - !Ref AlertTopic
+
+  IntranetCpuAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Condition: WithIntranet
+    Properties:
+      AlarmName: !Sub "${EnvironmentName}-intranet-cpu-high"
+      Namespace: AWS/EC2
+      MetricName: CPUUtilization
+      Dimensions: [{ Name: InstanceId, Value: !Ref IntranetInstanceId }]
+      Statistic: Average
+      Period: 300
+      EvaluationPeriods: 3
+      Threshold: !Ref CpuThresholdPercent
+      ComparisonOperator: GreaterThanThreshold
+      AlarmActions: [!Ref AlertTopic]
+
+  FtpRecoverAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Condition: WithFtp
+    Properties:
+      AlarmName: !Sub "${EnvironmentName}-ftp-system-check"
+      AlarmDescription: FTP host failure - recover the instance automatically.
+      Namespace: AWS/EC2
+      MetricName: StatusCheckFailed_System
+      Dimensions: [{ Name: InstanceId, Value: !Ref FtpInstanceId }]
+      Statistic: Maximum
+      Period: 60
+      EvaluationPeriods: 2
+      Threshold: 1
+      ComparisonOperator: GreaterThanOrEqualToThreshold
+      AlarmActions:
+        - !Sub "arn:${AWS::Partition}:automate:${AWS::Region}:ec2:recover"
+        - !Ref AlertTopic
+
+  FtpCpuAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Condition: WithFtp
+    Properties:
+      AlarmName: !Sub "${EnvironmentName}-ftp-cpu-high"
+      Namespace: AWS/EC2
+      MetricName: CPUUtilization
+      Dimensions: [{ Name: InstanceId, Value: !Ref FtpInstanceId }]
+      Statistic: Average
+      Period: 300
+      EvaluationPeriods: 3
+      Threshold: !Ref CpuThresholdPercent
+      ComparisonOperator: GreaterThanThreshold
+      AlarmActions: [!Ref AlertTopic]
+
+  NtpRecoverAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Condition: WithNtp
+    Properties:
+      AlarmName: !Sub "${EnvironmentName}-ntp-system-check"
+      AlarmDescription: NTP host failure - recover the instance automatically.
+      Namespace: AWS/EC2
+      MetricName: StatusCheckFailed_System
+      Dimensions: [{ Name: InstanceId, Value: !Ref NtpInstanceId }]
+      Statistic: Maximum
+      Period: 60
+      EvaluationPeriods: 2
+      Threshold: 1
+      ComparisonOperator: GreaterThanOrEqualToThreshold
+      AlarmActions:
+        - !Sub "arn:${AWS::Partition}:automate:${AWS::Region}:ec2:recover"
+        - !Ref AlertTopic
+
+  NtpCpuAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Condition: WithNtp
+    Properties:
+      AlarmName: !Sub "${EnvironmentName}-ntp-cpu-high"
+      Namespace: AWS/EC2
+      MetricName: CPUUtilization
+      Dimensions: [{ Name: InstanceId, Value: !Ref NtpInstanceId }]
+      Statistic: Average
+      Period: 300
+      EvaluationPeriods: 3
+      Threshold: !Ref CpuThresholdPercent
+      ComparisonOperator: GreaterThanThreshold
+      AlarmActions: [!Ref AlertTopic]
+
+  # ------------------------------------------------------------------
+  # Security alarms from CloudTrail logs (CIS AWS Foundations style)
+  # ------------------------------------------------------------------
+  RootUsageFilter:
+    Type: AWS::Logs::MetricFilter
+    Properties:
+      LogGroupName: { "Fn::ImportValue": !Sub "${EnvironmentName}-TrailLogGroup" }
+      FilterPattern: '{ $.userIdentity.type = "Root" && $.userIdentity.invokedBy NOT EXISTS && $.eventType != "AwsServiceEvent" }'
+      MetricTransformations:
+        - { MetricNamespace: BallotOnline/Security, MetricName: RootAccountUsage, MetricValue: "1", DefaultValue: 0 }
+
+  RootUsageAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmName: !Sub "${EnvironmentName}-security-root-usage"
+      AlarmDescription: The root account was used.
+      Namespace: BallotOnline/Security
+      MetricName: RootAccountUsage
+      Statistic: Sum
+      Period: 300
+      EvaluationPeriods: 1
+      Threshold: 1
+      ComparisonOperator: GreaterThanOrEqualToThreshold
+      TreatMissingData: notBreaching
+      AlarmActions: [!Ref AlertTopic]
+
+  ConsoleLoginWithoutMfaFilter:
+    Type: AWS::Logs::MetricFilter
+    Properties:
+      LogGroupName: { "Fn::ImportValue": !Sub "${EnvironmentName}-TrailLogGroup" }
+      FilterPattern: '{ ($.eventName = "ConsoleLogin") && ($.additionalEventData.MFAUsed != "Yes") && ($.userIdentity.type = "IAMUser") && ($.responseElements.ConsoleLogin = "Success") }'
+      MetricTransformations:
+        - { MetricNamespace: BallotOnline/Security, MetricName: ConsoleLoginWithoutMfa, MetricValue: "1", DefaultValue: 0 }
+
+  ConsoleLoginWithoutMfaAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmName: !Sub "${EnvironmentName}-security-console-login-no-mfa"
+      AlarmDescription: An IAM user signed in to the console without MFA.
+      Namespace: BallotOnline/Security
+      MetricName: ConsoleLoginWithoutMfa
+      Statistic: Sum
+      Period: 300
+      EvaluationPeriods: 1
+      Threshold: 1
+      ComparisonOperator: GreaterThanOrEqualToThreshold
+      TreatMissingData: notBreaching
+      AlarmActions: [!Ref AlertTopic]
+
+  UnauthorizedApiCallsFilter:
+    Type: AWS::Logs::MetricFilter
+    Properties:
+      LogGroupName: { "Fn::ImportValue": !Sub "${EnvironmentName}-TrailLogGroup" }
+      FilterPattern: '{ (($.errorCode = "*UnauthorizedOperation") || ($.errorCode = "AccessDenied*")) && ($.sourceIPAddress != "delivery.logs.amazonaws.com") && ($.eventName != "HeadBucket") }'
+      MetricTransformations:
+        - { MetricNamespace: BallotOnline/Security, MetricName: UnauthorizedApiCalls, MetricValue: "1", DefaultValue: 0 }
+
+  UnauthorizedApiCallsAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmName: !Sub "${EnvironmentName}-security-unauthorized-api-calls"
+      AlarmDescription: Repeated access-denied API calls (possible probing or misconfiguration).
+      Namespace: BallotOnline/Security
+      MetricName: UnauthorizedApiCalls
+      Statistic: Sum
+      Period: 300
+      EvaluationPeriods: 1
+      Threshold: 10
+      ComparisonOperator: GreaterThanOrEqualToThreshold
+      TreatMissingData: notBreaching
+      AlarmActions: [!Ref AlertTopic]
+
+  IamPolicyChangesFilter:
+    Type: AWS::Logs::MetricFilter
+    Properties:
+      LogGroupName: { "Fn::ImportValue": !Sub "${EnvironmentName}-TrailLogGroup" }
+      FilterPattern: '{ ($.eventName = DeleteGroupPolicy) || ($.eventName = DeleteRolePolicy) || ($.eventName = DeleteUserPolicy) || ($.eventName = PutGroupPolicy) || ($.eventName = PutRolePolicy) || ($.eventName = PutUserPolicy) || ($.eventName = CreatePolicy) || ($.eventName = DeletePolicy) || ($.eventName = CreatePolicyVersion) || ($.eventName = DeletePolicyVersion) || ($.eventName = AttachRolePolicy) || ($.eventName = DetachRolePolicy) || ($.eventName = AttachUserPolicy) || ($.eventName = DetachUserPolicy) || ($.eventName = AttachGroupPolicy) || ($.eventName = DetachGroupPolicy) }'
+      MetricTransformations:
+        - { MetricNamespace: BallotOnline/Security, MetricName: IamPolicyChanges, MetricValue: "1", DefaultValue: 0 }
+
+  IamPolicyChangesAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmName: !Sub "${EnvironmentName}-security-iam-policy-changes"
+      AlarmDescription: An IAM policy was created, changed, attached, or detached.
+      Namespace: BallotOnline/Security
+      MetricName: IamPolicyChanges
+      Statistic: Sum
+      Period: 300
+      EvaluationPeriods: 1
+      Threshold: 1
+      ComparisonOperator: GreaterThanOrEqualToThreshold
+      TreatMissingData: notBreaching
+      AlarmActions: [!Ref AlertTopic]
+
+  SecurityGroupChangesFilter:
+    Type: AWS::Logs::MetricFilter
+    Properties:
+      LogGroupName: { "Fn::ImportValue": !Sub "${EnvironmentName}-TrailLogGroup" }
+      FilterPattern: '{ ($.eventName = AuthorizeSecurityGroupIngress) || ($.eventName = AuthorizeSecurityGroupEgress) || ($.eventName = RevokeSecurityGroupIngress) || ($.eventName = RevokeSecurityGroupEgress) || ($.eventName = CreateSecurityGroup) || ($.eventName = DeleteSecurityGroup) }'
+      MetricTransformations:
+        - { MetricNamespace: BallotOnline/Security, MetricName: SecurityGroupChanges, MetricValue: "1", DefaultValue: 0 }
+
+  SecurityGroupChangesAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmName: !Sub "${EnvironmentName}-security-sg-changes"
+      AlarmDescription: A security group rule was added, removed, or deleted.
+      Namespace: BallotOnline/Security
+      MetricName: SecurityGroupChanges
+      Statistic: Sum
+      Period: 300
+      EvaluationPeriods: 1
+      Threshold: 1
+      ComparisonOperator: GreaterThanOrEqualToThreshold
+      TreatMissingData: notBreaching
+      AlarmActions: [!Ref AlertTopic]
+
+  CloudTrailChangesFilter:
+    Type: AWS::Logs::MetricFilter
+    Properties:
+      LogGroupName: { "Fn::ImportValue": !Sub "${EnvironmentName}-TrailLogGroup" }
+      FilterPattern: '{ ($.eventName = CreateTrail) || ($.eventName = UpdateTrail) || ($.eventName = DeleteTrail) || ($.eventName = StartLogging) || ($.eventName = StopLogging) }'
+      MetricTransformations:
+        - { MetricNamespace: BallotOnline/Security, MetricName: CloudTrailChanges, MetricValue: "1", DefaultValue: 0 }
+
+  CloudTrailChangesAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmName: !Sub "${EnvironmentName}-security-cloudtrail-changes"
+      AlarmDescription: CloudTrail configuration changed or logging stopped.
+      Namespace: BallotOnline/Security
+      MetricName: CloudTrailChanges
+      Statistic: Sum
+      Period: 300
+      EvaluationPeriods: 1
+      Threshold: 1
+      ComparisonOperator: GreaterThanOrEqualToThreshold
+      TreatMissingData: notBreaching
+      AlarmActions: [!Ref AlertTopic]
+
+  KmsKeyDisableFilter:
+    Type: AWS::Logs::MetricFilter
+    Properties:
+      LogGroupName: { "Fn::ImportValue": !Sub "${EnvironmentName}-TrailLogGroup" }
+      FilterPattern: '{ ($.eventSource = kms.amazonaws.com) && (($.eventName = DisableKey) || ($.eventName = ScheduleKeyDeletion)) }'
+      MetricTransformations:
+        - { MetricNamespace: BallotOnline/Security, MetricName: KmsKeyDisableOrDelete, MetricValue: "1", DefaultValue: 0 }
+
+  KmsKeyDisableAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmName: !Sub "${EnvironmentName}-security-kms-key-disable"
+      AlarmDescription: A KMS key was disabled or scheduled for deletion.
+      Namespace: BallotOnline/Security
+      MetricName: KmsKeyDisableOrDelete
+      Statistic: Sum
+      Period: 300
+      EvaluationPeriods: 1
+      Threshold: 1
+      ComparisonOperator: GreaterThanOrEqualToThreshold
+      TreatMissingData: notBreaching
+      AlarmActions: [!Ref AlertTopic]
+
+  # ------------------------------------------------------------------
+  # EventBridge rules -> alert topic
+  # ------------------------------------------------------------------
+  GuardDutyHighSeverityRule:
+    Type: AWS::Events::Rule
+    Properties:
+      Name: !Sub "${EnvironmentName}-guardduty-high-severity"
+      Description: GuardDuty findings with severity 7.0 or higher.
+      EventPattern:
+        source: [aws.guardduty]
+        detail-type: [GuardDuty Finding]
+        detail:
+          severity: [{ numeric: [">=", 7] }]
+      Targets:
+        - Id: alert-topic
+          Arn: !Ref AlertTopic
+
+  AuroraFailoverRule:
+    Type: AWS::Events::Rule
+    Properties:
+      Name: !Sub "${EnvironmentName}-aurora-failover"
+      Description: Aurora cluster failover events.
+      EventPattern:
+        source: [aws.rds]
+        detail-type: [RDS DB Cluster Event]
+        detail:
+          EventCategories: [failover]
+      Targets:
+        - Id: alert-topic
+          Arn: !Ref AlertTopic
+
+  DmsTaskStateRule:
+    Type: AWS::Events::Rule
+    Properties:
+      Name: !Sub "${EnvironmentName}-dms-task-state"
+      Description: DMS replication task state changes (started, stopped, failed).
+      EventPattern:
+        source: [aws.dms]
+        detail-type: [DMS Replication Task State Change]
+      Targets:
+        - Id: alert-topic
+          Arn: !Ref AlertTopic
+
+  # ------------------------------------------------------------------
+  # Operations dashboard
+  # ------------------------------------------------------------------
+  OperationsDashboard:
+    Type: AWS::CloudWatch::Dashboard
+    Properties:
+      DashboardName: !Sub "${EnvironmentName}-operations"
+      DashboardBody:
+        Fn::Sub:
+          - |
+            {
+              "widgets": [
+                { "type": "text", "x": 0, "y": 0, "width": 24, "height": 2,
+                  "properties": { "markdown": "## BallotOnline Operations\nAurora HR database, DMS migration, and security signals. Alerts go to SNS topic **${EnvironmentName}-alerts**." } },
+                { "type": "metric", "x": 0, "y": 2, "width": 8, "height": 6,
+                  "properties": { "title": "Aurora CPU (%)", "region": "${AWS::Region}", "stat": "Average", "period": 300,
+                    "metrics": [ [ "AWS/RDS", "CPUUtilization", "DBClusterIdentifier", "${ClusterId}" ] ] } },
+                { "type": "metric", "x": 8, "y": 2, "width": 8, "height": 6,
+                  "properties": { "title": "Aurora connections", "region": "${AWS::Region}", "stat": "Maximum", "period": 300,
+                    "metrics": [ [ "AWS/RDS", "DatabaseConnections", "DBClusterIdentifier", "${ClusterId}" ] ] } },
+                { "type": "metric", "x": 16, "y": 2, "width": 8, "height": 6,
+                  "properties": { "title": "Aurora replica lag (ms)", "region": "${AWS::Region}", "stat": "Maximum", "period": 60,
+                    "metrics": [ [ "AWS/RDS", "AuroraReplicaLagMaximum", "DBClusterIdentifier", "${ClusterId}" ] ] } },
+                { "type": "metric", "x": 0, "y": 8, "width": 8, "height": 6,
+                  "properties": { "title": "Aurora read / write latency (s)", "region": "${AWS::Region}", "stat": "Average", "period": 300,
+                    "metrics": [ [ "AWS/RDS", "ReadLatency", "DBClusterIdentifier", "${ClusterId}" ],
+                                 [ "AWS/RDS", "WriteLatency", "DBClusterIdentifier", "${ClusterId}" ] ] } },
+                { "type": "metric", "x": 8, "y": 8, "width": 8, "height": 6,
+                  "properties": { "title": "DMS instance CPU (%) and free storage", "region": "${AWS::Region}", "stat": "Average", "period": 300,
+                    "metrics": [ [ "AWS/DMS", "CPUUtilization", "ReplicationInstanceIdentifier", "${EnvironmentName}-dms" ],
+                                 [ "AWS/DMS", "FreeStorageSpace", "ReplicationInstanceIdentifier", "${EnvironmentName}-dms", { "yAxis": "right" } ] ] } },
+                { "type": "metric", "x": 16, "y": 8, "width": 8, "height": 6,
+                  "properties": { "title": "Security events (count)", "region": "${AWS::Region}", "stat": "Sum", "period": 3600,
+                    "metrics": [ [ "BallotOnline/Security", "RootAccountUsage" ],
+                                 [ "BallotOnline/Security", "ConsoleLoginWithoutMfa" ],
+                                 [ "BallotOnline/Security", "UnauthorizedApiCalls" ],
+                                 [ "BallotOnline/Security", "IamPolicyChanges" ],
+                                 [ "BallotOnline/Security", "SecurityGroupChanges" ],
+                                 [ "BallotOnline/Security", "CloudTrailChanges" ],
+                                 [ "BallotOnline/Security", "KmsKeyDisableOrDelete" ] ] } }
+              ]
+            }
+          - ClusterId: { "Fn::ImportValue": !Sub "${EnvironmentName}-AuroraClusterId" }
+
+Outputs:
+  AlertTopicArn:
+    Value: !Ref AlertTopic
+    Export: { Name: !Sub "${EnvironmentName}-AlertTopicArn" }
+  DashboardUrl:
+    Value: !Sub "https://${AWS::Region}.console.aws.amazon.com/cloudwatch/home?region=${AWS::Region}#dashboards:name=${EnvironmentName}-operations"

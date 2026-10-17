@@ -9,10 +9,13 @@
 #   4. dms       04-dms.yaml       DMS instance, endpoints, task
 #   5. governance 05-governance.yaml CloudTrail, GuardDuty, Access Analyzer
 #                                    (independent; deployed with "all")
+#   6. monitoring 06-monitoring.yaml alarms, security alarms, dashboard, SNS
+#                                    (needs aurora and governance)
+#   7. operations 07-operations.yaml SSM patching, inventory, CloudWatch agent
 #
 # Usage:
-#   ./deploy.sh deploy [network|security|governance|aurora|dms|all]
-#   ./deploy.sh delete [dms|aurora|governance|security|network|all]
+#   ./deploy.sh deploy [network|security|governance|aurora|dms|monitoring|operations|all]
+#   ./deploy.sh delete [operations|monitoring|dms|aurora|governance|security|network|all]
 #   ./deploy.sh status
 #
 # Environment variables:
@@ -25,6 +28,9 @@
 #   MIGRATION_TYPE        optional, default full-load
 #   ENABLE_GUARDDUTY      optional, default true (false if a detector exists)
 #   ENABLE_SECURITY_HUB   optional, default false
+#   ALERT_EMAIL           optional, email for alarm notifications
+#   DMS_TASK_RESOURCE_ID, VPN_CONNECTION_ID, INTRANET_INSTANCE_ID,
+#   FTP_INSTANCE_ID, NTP_INSTANCE_ID   optional, enable those alarms
 #
 # Cost note: NAT gateways, Aurora, and the DMS instance bill hourly.
 # Run "./deploy.sh delete all" when you are done.
@@ -37,7 +43,7 @@ here="$(cd "$(dirname "$0")" && pwd)"
 cfn() { aws cloudformation --region "$AWS_REGION" "$@"; }
 
 usage() {
-  sed -n '2,30p' "$0" | sed 's/^# \{0,1\}//'
+  sed -n '2,36p' "$0" | sed 's/^# \{0,1\}//'
   exit 1
 }
 
@@ -82,6 +88,18 @@ deploy_layer() {
         EnableGuardDuty="${ENABLE_GUARDDUTY:-true}" \
         EnableSecurityHub="${ENABLE_SECURITY_HUB:-false}"
       ;;
+    monitoring)
+      deploy_stack monitoring 06-monitoring.yaml \
+        AlertEmail="${ALERT_EMAIL:-}" \
+        DmsTaskResourceId="${DMS_TASK_RESOURCE_ID:-}" \
+        VpnConnectionId="${VPN_CONNECTION_ID:-}" \
+        IntranetInstanceId="${INTRANET_INSTANCE_ID:-}" \
+        FtpInstanceId="${FTP_INSTANCE_ID:-}" \
+        NtpInstanceId="${NTP_INSTANCE_ID:-}"
+      ;;
+    operations)
+      deploy_stack operations 07-operations.yaml
+      ;;
     dms)
       : "${SOURCE_SERVER_NAME:?Set SOURCE_SERVER_NAME to the on-premises MySQL host or IP}"
       deploy_stack dms 04-dms.yaml \
@@ -107,7 +125,7 @@ delete_layer() {
       fi
       delete_stack aurora
       ;;
-    dms|governance|security|network)
+    operations|monitoring|dms|governance|security|network)
       delete_stack "$1"
       ;;
     *) usage ;;
@@ -127,13 +145,14 @@ case "$action" in
       else
         echo "Skipping dms stack: set SOURCE_SERVER_NAME and run './deploy.sh deploy dms'."
       fi
+      for layer in monitoring operations; do deploy_layer "$layer"; done
     else
       deploy_layer "$target"
     fi
     ;;
   delete)
     if [[ "$target" == "all" ]]; then
-      for layer in dms aurora governance security network; do delete_layer "$layer"; done
+      for layer in operations monitoring dms aurora governance security network; do delete_layer "$layer"; done
     else
       delete_layer "$target"
     fi

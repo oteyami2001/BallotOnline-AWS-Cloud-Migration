@@ -1,0 +1,222 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Description: >-
+  BallotOnline migration - Systems Manager operations for migrated EC2
+  servers. Installs and configures the CloudWatch agent, scans for patches
+  daily, installs patches weekly, and collects software inventory. Targets
+  instances tagged Project=BallotOnline. The CloudWatch agent configuration
+  is chosen by the BallotOnlineOS tag (Linux or Windows).
+
+Parameters:
+  EnvironmentName:
+    Type: String
+    Default: ballotonline
+    AllowedPattern: "^[a-z][a-z0-9-]{1,30}$"
+  TargetTagValue:
+    Type: String
+    Default: BallotOnline
+    Description: Instances with tag Project=<value> are managed by these associations.
+  PatchInstallSchedule:
+    Type: String
+    Default: cron(0 3 ? * SUN *)
+    Description: When to install patches (UTC). Default is Sunday 03:00.
+  LogRetentionDays:
+    Type: Number
+    Default: 90
+    AllowedValues: [30, 60, 90, 180, 365]
+
+Resources:
+  # ------------------------------------------------------------------
+  # CloudWatch agent configuration (memory, disk, OS logs)
+  # Parameter names must start with "AmazonCloudWatch-" so the
+  # CloudWatchAgentServerPolicy on the instance role can read them.
+  # ------------------------------------------------------------------
+  LinuxAgentConfig:
+    Type: AWS::SSM::Parameter
+    Properties:
+      Name: !Sub "AmazonCloudWatch-${EnvironmentName}-linux"
+      Type: String
+      Description: CloudWatch agent configuration for migrated Linux servers
+      Value: !Sub |
+        {
+          "agent": { "metrics_collection_interval": 60 },
+          "metrics": {
+            "namespace": "CWAgent",
+            "append_dimensions": { "InstanceId": "${!aws:InstanceId}" },
+            "metrics_collected": {
+              "mem": { "measurement": ["mem_used_percent"] },
+              "disk": { "measurement": ["used_percent"], "resources": ["/"], "ignore_file_system_types": ["sysfs", "tmpfs", "devtmpfs"] },
+              "swap": { "measurement": ["swap_used_percent"] }
+            }
+          },
+          "logs": {
+            "logs_collected": {
+              "files": {
+                "collect_list": [
+                  { "file_path": "/var/log/messages", "log_group_name": "/${EnvironmentName}/ec2/linux/messages", "log_stream_name": "{instance_id}" },
+                  { "file_path": "/var/log/secure", "log_group_name": "/${EnvironmentName}/ec2/linux/secure", "log_stream_name": "{instance_id}" }
+                ]
+              }
+            }
+          }
+        }
+
+  WindowsAgentConfig:
+    Type: AWS::SSM::Parameter
+    Properties:
+      Name: !Sub "AmazonCloudWatch-${EnvironmentName}-windows"
+      Type: String
+      Description: CloudWatch agent configuration for migrated Windows servers
+      Value: !Sub |
+        {
+          "metrics": {
+            "namespace": "CWAgent",
+            "append_dimensions": { "InstanceId": "${!aws:InstanceId}" },
+            "metrics_collected": {
+              "Memory": { "measurement": ["% Committed Bytes In Use"], "metrics_collection_interval": 60 },
+              "LogicalDisk": { "measurement": ["% Free Space"], "resources": ["C:"], "metrics_collection_interval": 60 }
+            }
+          },
+          "logs": {
+            "logs_collected": {
+              "windows_events": {
+                "collect_list": [
+                  { "event_name": "System", "event_levels": ["ERROR", "WARNING"], "log_group_name": "/${EnvironmentName}/ec2/windows/system", "log_stream_name": "{instance_id}" },
+                  { "event_name": "Application", "event_levels": ["ERROR", "WARNING"], "log_group_name": "/${EnvironmentName}/ec2/windows/application", "log_stream_name": "{instance_id}" },
+                  { "event_name": "Security", "event_levels": ["INFORMATION", "WARNING", "ERROR"], "log_group_name": "/${EnvironmentName}/ec2/windows/security", "log_stream_name": "{instance_id}" }
+                ]
+              }
+            }
+          }
+        }
+
+  # Pre-create log groups so retention is controlled here
+  LinuxMessagesLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !Sub "/${EnvironmentName}/ec2/linux/messages"
+      RetentionInDays: !Ref LogRetentionDays
+  LinuxSecureLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !Sub "/${EnvironmentName}/ec2/linux/secure"
+      RetentionInDays: !Ref LogRetentionDays
+  WindowsSystemLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !Sub "/${EnvironmentName}/ec2/windows/system"
+      RetentionInDays: !Ref LogRetentionDays
+  WindowsApplicationLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !Sub "/${EnvironmentName}/ec2/windows/application"
+      RetentionInDays: !Ref LogRetentionDays
+  WindowsSecurityLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !Sub "/${EnvironmentName}/ec2/windows/security"
+      RetentionInDays: !Ref LogRetentionDays
+
+  # ------------------------------------------------------------------
+  # State Manager associations
+  # ------------------------------------------------------------------
+  InstallCloudWatchAgent:
+    Type: AWS::SSM::Association
+    Properties:
+      AssociationName: !Sub "${EnvironmentName}-install-cloudwatch-agent"
+      Name: AWS-ConfigureAWSPackage
+      Parameters:
+        action: [Install]
+        name: [AmazonCloudWatchAgent]
+      Targets:
+        - Key: tag:Project
+          Values: [!Ref TargetTagValue]
+      ScheduleExpression: rate(30 days)
+      ComplianceSeverity: MEDIUM
+
+  ConfigureLinuxAgent:
+    Type: AWS::SSM::Association
+    DependsOn: InstallCloudWatchAgent
+    Properties:
+      AssociationName: !Sub "${EnvironmentName}-configure-cloudwatch-agent-linux"
+      Name: AmazonCloudWatch-ManageAgent
+      Parameters:
+        action: [configure]
+        mode: [ec2]
+        optionalConfigurationSource: [ssm]
+        optionalConfigurationLocation: [!Ref LinuxAgentConfig]
+        optionalRestart: ["yes"]
+      Targets:
+        - Key: tag:BallotOnlineOS
+          Values: [Linux]
+      ScheduleExpression: rate(30 days)
+      ComplianceSeverity: MEDIUM
+
+  ConfigureWindowsAgent:
+    Type: AWS::SSM::Association
+    DependsOn: InstallCloudWatchAgent
+    Properties:
+      AssociationName: !Sub "${EnvironmentName}-configure-cloudwatch-agent-windows"
+      Name: AmazonCloudWatch-ManageAgent
+      Parameters:
+        action: [configure]
+        mode: [ec2]
+        optionalConfigurationSource: [ssm]
+        optionalConfigurationLocation: [!Ref WindowsAgentConfig]
+        optionalRestart: ["yes"]
+      Targets:
+        - Key: tag:BallotOnlineOS
+          Values: [Windows]
+      ScheduleExpression: rate(30 days)
+      ComplianceSeverity: MEDIUM
+
+  PatchScanDaily:
+    Type: AWS::SSM::Association
+    Properties:
+      AssociationName: !Sub "${EnvironmentName}-patch-scan"
+      Name: AWS-RunPatchBaseline
+      Parameters:
+        Operation: [Scan]
+      Targets:
+        - Key: tag:Project
+          Values: [!Ref TargetTagValue]
+      ScheduleExpression: rate(1 day)
+      ComplianceSeverity: HIGH
+
+  PatchInstallWeekly:
+    Type: AWS::SSM::Association
+    Properties:
+      AssociationName: !Sub "${EnvironmentName}-patch-install"
+      Name: AWS-RunPatchBaseline
+      Parameters:
+        Operation: [Install]
+        RebootOption: [RebootIfNeeded]
+      Targets:
+        - Key: tag:Project
+          Values: [!Ref TargetTagValue]
+      ScheduleExpression: !Ref PatchInstallSchedule
+      ApplyOnlyAtCronInterval: true
+      MaxConcurrency: "1"
+      MaxErrors: "1"
+      ComplianceSeverity: HIGH
+
+  SoftwareInventory:
+    Type: AWS::SSM::Association
+    Properties:
+      AssociationName: !Sub "${EnvironmentName}-inventory"
+      Name: AWS-GatherSoftwareInventory
+      Parameters:
+        applications: [Enabled]
+        awsComponents: [Enabled]
+        networkConfig: [Enabled]
+        windowsUpdates: [Enabled]
+        services: [Enabled]
+      Targets:
+        - Key: tag:Project
+          Values: [!Ref TargetTagValue]
+      ScheduleExpression: rate(1 day)
+
+Outputs:
+  LinuxAgentConfigParameter:
+    Value: !Ref LinuxAgentConfig
+  WindowsAgentConfigParameter:
+    Value: !Ref WindowsAgentConfig
