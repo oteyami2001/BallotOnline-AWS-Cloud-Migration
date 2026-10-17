@@ -1,0 +1,138 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Description: >-
+  BallotOnline migration - Aurora MySQL target for the HR database. Encrypted
+  cluster with a writer and a Multi-AZ reader in private subnets, TLS
+  required, password managed by AWS Secrets Manager.
+
+Parameters:
+  EnvironmentName:
+    Type: String
+    Default: ballotonline
+    AllowedPattern: "^[a-z][a-z0-9-]{1,30}$"
+    Description: Must match the network and security stacks.
+  DatabaseName:
+    Type: String
+    Default: ballotonline_hr
+    AllowedPattern: "^[a-zA-Z][a-zA-Z0-9_]{0,63}$"
+  MasterUsername:
+    Type: String
+    Default: hradmin
+    AllowedPattern: "^[a-zA-Z][a-zA-Z0-9_]{0,15}$"
+    Description: The password is generated and stored in Secrets Manager.
+  InstanceClass:
+    Type: String
+    Default: db.t4g.medium
+    AllowedValues:
+      - db.t4g.medium
+      - db.r6g.large
+      - db.r6g.xlarge
+      - db.r7g.large
+  CreateReader:
+    Type: String
+    Default: "true"
+    AllowedValues: ["true", "false"]
+    Description: Add a reader in the second AZ for automatic failover.
+  BackupRetentionDays:
+    Type: Number
+    Default: 7
+    MinValue: 1
+    MaxValue: 35
+  DeletionProtection:
+    Type: String
+    Default: "true"
+    AllowedValues: ["true", "false"]
+
+Conditions:
+  WithReader: !Equals [!Ref CreateReader, "true"]
+
+Resources:
+  DbSubnetGroup:
+    Type: AWS::RDS::DBSubnetGroup
+    Properties:
+      DBSubnetGroupDescription: !Sub "${EnvironmentName} Aurora private DB subnets"
+      SubnetIds:
+        - { "Fn::ImportValue": !Sub "${EnvironmentName}-DbSubnetA" }
+        - { "Fn::ImportValue": !Sub "${EnvironmentName}-DbSubnetB" }
+
+  ClusterParameterGroup:
+    Type: AWS::RDS::DBClusterParameterGroup
+    Properties:
+      Description: !Sub "${EnvironmentName} Aurora MySQL 8.0 cluster parameters"
+      Family: aurora-mysql8.0
+      Parameters:
+        require_secure_transport: "ON"
+        character_set_server: utf8mb4
+        collation_server: utf8mb4_0900_ai_ci
+        time_zone: UTC
+
+  AuroraCluster:
+    Type: AWS::RDS::DBCluster
+    DeletionPolicy: Snapshot
+    UpdateReplacePolicy: Snapshot
+    Properties:
+      Engine: aurora-mysql
+      DatabaseName: !Ref DatabaseName
+      MasterUsername: !Ref MasterUsername
+      ManageMasterUserPassword: true
+      DBSubnetGroupName: !Ref DbSubnetGroup
+      DBClusterParameterGroupName: !Ref ClusterParameterGroup
+      VpcSecurityGroupIds:
+        - { "Fn::ImportValue": !Sub "${EnvironmentName}-AuroraSg" }
+      StorageEncrypted: true
+      KmsKeyId: { "Fn::ImportValue": !Sub "${EnvironmentName}-DataKeyArn" }
+      BackupRetentionPeriod: !Ref BackupRetentionDays
+      PreferredBackupWindow: "07:00-08:00"
+      PreferredMaintenanceWindow: "sun:08:30-sun:09:30"
+      CopyTagsToSnapshot: true
+      DeletionProtection: !Ref DeletionProtection
+      EnableCloudwatchLogsExports: [error, slowquery]
+      Tags:
+        - { Key: Name, Value: !Sub "${EnvironmentName}-hr-aurora" }
+
+  WriterInstance:
+    Type: AWS::RDS::DBInstance
+    Properties:
+      Engine: aurora-mysql
+      DBClusterIdentifier: !Ref AuroraCluster
+      DBInstanceClass: !Ref InstanceClass
+      AvailabilityZone: !Select [0, !GetAZs ""]
+      PubliclyAccessible: false
+      EnablePerformanceInsights: true
+      PerformanceInsightsKMSKeyId: { "Fn::ImportValue": !Sub "${EnvironmentName}-DataKeyArn" }
+      AutoMinorVersionUpgrade: true
+      Tags:
+        - { Key: Name, Value: !Sub "${EnvironmentName}-hr-aurora-writer" }
+
+  ReaderInstance:
+    Type: AWS::RDS::DBInstance
+    Condition: WithReader
+    DependsOn: WriterInstance
+    Properties:
+      Engine: aurora-mysql
+      DBClusterIdentifier: !Ref AuroraCluster
+      DBInstanceClass: !Ref InstanceClass
+      AvailabilityZone: !Select [1, !GetAZs ""]
+      PubliclyAccessible: false
+      EnablePerformanceInsights: true
+      PerformanceInsightsKMSKeyId: { "Fn::ImportValue": !Sub "${EnvironmentName}-DataKeyArn" }
+      AutoMinorVersionUpgrade: true
+      Tags:
+        - { Key: Name, Value: !Sub "${EnvironmentName}-hr-aurora-reader" }
+
+Outputs:
+  ClusterIdentifier:
+    Value: !Ref AuroraCluster
+    Export: { Name: !Sub "${EnvironmentName}-AuroraClusterId" }
+  WriterEndpoint:
+    Value: !GetAtt AuroraCluster.Endpoint.Address
+    Export: { Name: !Sub "${EnvironmentName}-AuroraWriterEndpoint" }
+  ReaderEndpoint:
+    Value: !GetAtt AuroraCluster.ReadEndpoint.Address
+    Export: { Name: !Sub "${EnvironmentName}-AuroraReaderEndpoint" }
+  Port:
+    Value: !GetAtt AuroraCluster.Endpoint.Port
+    Export: { Name: !Sub "${EnvironmentName}-AuroraPort" }
+  MasterUserSecretArn:
+    Value: !GetAtt AuroraCluster.MasterUserSecret.SecretArn
+    Description: Secrets Manager secret holding the generated master password.
+    Export: { Name: !Sub "${EnvironmentName}-AuroraSecretArn" }

@@ -1,0 +1,430 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Description: >-
+  BallotOnline migration - Network layer. VPC across two Availability Zones
+  with public, private app, private DB, and MGN staging subnets, NAT gateways,
+  optional Site-to-Site VPN to the on-premises data center, and VPC Flow Logs.
+
+Metadata:
+  AWS::CloudFormation::Interface:
+    ParameterGroups:
+      - Label: { default: Naming }
+        Parameters: [EnvironmentName]
+      - Label: { default: Addressing }
+        Parameters:
+          - VpcCidr
+          - PublicSubnetACidr
+          - PublicSubnetBCidr
+          - AppSubnetACidr
+          - AppSubnetBCidr
+          - DbSubnetACidr
+          - DbSubnetBCidr
+          - StagingSubnetCidr
+          - OnPremisesCidr
+      - Label: { default: Cost and connectivity }
+        Parameters: [SingleNatGateway, CreateVpn, CustomerGatewayIp]
+
+Parameters:
+  EnvironmentName:
+    Type: String
+    Default: ballotonline
+    AllowedPattern: "^[a-z][a-z0-9-]{1,30}$"
+    Description: Prefix for resource names and stack exports.
+  VpcCidr:
+    Type: String
+    Default: 10.0.0.0/16
+  PublicSubnetACidr:
+    Type: String
+    Default: 10.0.1.0/24
+  PublicSubnetBCidr:
+    Type: String
+    Default: 10.0.2.0/24
+  AppSubnetACidr:
+    Type: String
+    Default: 10.0.11.0/24
+  AppSubnetBCidr:
+    Type: String
+    Default: 10.0.12.0/24
+  DbSubnetACidr:
+    Type: String
+    Default: 10.0.21.0/24
+  DbSubnetBCidr:
+    Type: String
+    Default: 10.0.22.0/24
+  StagingSubnetCidr:
+    Type: String
+    Default: 10.0.31.0/24
+    Description: Subnet for AWS MGN replication servers.
+  OnPremisesCidr:
+    Type: String
+    Default: 192.168.0.0/16
+    Description: Address range of the BallotOnline on-premises network.
+  SingleNatGateway:
+    Type: String
+    Default: "true"
+    AllowedValues: ["true", "false"]
+    Description: Use one NAT gateway to save cost (true) or one per AZ for high availability (false).
+  CreateVpn:
+    Type: String
+    Default: "false"
+    AllowedValues: ["true", "false"]
+    Description: Create the Site-to-Site VPN to the on-premises network.
+  CustomerGatewayIp:
+    Type: String
+    Default: ""
+    Description: Public IP of the on-premises VPN device. Required when CreateVpn is true.
+
+Conditions:
+  NatPerAz: !Equals [!Ref SingleNatGateway, "false"]
+  WithVpn: !Equals [!Ref CreateVpn, "true"]
+
+Rules:
+  VpnNeedsCustomerGateway:
+    RuleCondition: !Equals [!Ref CreateVpn, "true"]
+    Assertions:
+      - Assert: !Not [!Equals [!Ref CustomerGatewayIp, ""]]
+        AssertDescription: CustomerGatewayIp is required when CreateVpn is true.
+
+Resources:
+  # ------------------------------------------------------------------
+  # VPC and internet access
+  # ------------------------------------------------------------------
+  Vpc:
+    Type: AWS::EC2::VPC
+    Properties:
+      CidrBlock: !Ref VpcCidr
+      EnableDnsSupport: true
+      EnableDnsHostnames: true
+      Tags:
+        - { Key: Name, Value: !Sub "${EnvironmentName}-vpc" }
+
+  InternetGateway:
+    Type: AWS::EC2::InternetGateway
+    Properties:
+      Tags:
+        - { Key: Name, Value: !Sub "${EnvironmentName}-igw" }
+
+  InternetGatewayAttachment:
+    Type: AWS::EC2::VPCGatewayAttachment
+    Properties:
+      VpcId: !Ref Vpc
+      InternetGatewayId: !Ref InternetGateway
+
+  # ------------------------------------------------------------------
+  # Subnets
+  # ------------------------------------------------------------------
+  PublicSubnetA:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref Vpc
+      CidrBlock: !Ref PublicSubnetACidr
+      AvailabilityZone: !Select [0, !GetAZs ""]
+      Tags:
+        - { Key: Name, Value: !Sub "${EnvironmentName}-public-a" }
+
+  PublicSubnetB:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref Vpc
+      CidrBlock: !Ref PublicSubnetBCidr
+      AvailabilityZone: !Select [1, !GetAZs ""]
+      Tags:
+        - { Key: Name, Value: !Sub "${EnvironmentName}-public-b" }
+
+  AppSubnetA:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref Vpc
+      CidrBlock: !Ref AppSubnetACidr
+      AvailabilityZone: !Select [0, !GetAZs ""]
+      Tags:
+        - { Key: Name, Value: !Sub "${EnvironmentName}-app-a" }
+
+  AppSubnetB:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref Vpc
+      CidrBlock: !Ref AppSubnetBCidr
+      AvailabilityZone: !Select [1, !GetAZs ""]
+      Tags:
+        - { Key: Name, Value: !Sub "${EnvironmentName}-app-b" }
+
+  DbSubnetA:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref Vpc
+      CidrBlock: !Ref DbSubnetACidr
+      AvailabilityZone: !Select [0, !GetAZs ""]
+      Tags:
+        - { Key: Name, Value: !Sub "${EnvironmentName}-db-a" }
+
+  DbSubnetB:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref Vpc
+      CidrBlock: !Ref DbSubnetBCidr
+      AvailabilityZone: !Select [1, !GetAZs ""]
+      Tags:
+        - { Key: Name, Value: !Sub "${EnvironmentName}-db-b" }
+
+  StagingSubnet:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref Vpc
+      CidrBlock: !Ref StagingSubnetCidr
+      AvailabilityZone: !Select [0, !GetAZs ""]
+      Tags:
+        - { Key: Name, Value: !Sub "${EnvironmentName}-mgn-staging" }
+
+  # ------------------------------------------------------------------
+  # NAT gateways (outbound only for private subnets)
+  # ------------------------------------------------------------------
+  NatEipA:
+    Type: AWS::EC2::EIP
+    DependsOn: InternetGatewayAttachment
+    Properties:
+      Domain: vpc
+      Tags:
+        - { Key: Name, Value: !Sub "${EnvironmentName}-nat-a" }
+
+  NatGatewayA:
+    Type: AWS::EC2::NatGateway
+    Properties:
+      AllocationId: !GetAtt NatEipA.AllocationId
+      SubnetId: !Ref PublicSubnetA
+      Tags:
+        - { Key: Name, Value: !Sub "${EnvironmentName}-nat-a" }
+
+  NatEipB:
+    Type: AWS::EC2::EIP
+    Condition: NatPerAz
+    DependsOn: InternetGatewayAttachment
+    Properties:
+      Domain: vpc
+      Tags:
+        - { Key: Name, Value: !Sub "${EnvironmentName}-nat-b" }
+
+  NatGatewayB:
+    Type: AWS::EC2::NatGateway
+    Condition: NatPerAz
+    Properties:
+      AllocationId: !GetAtt NatEipB.AllocationId
+      SubnetId: !Ref PublicSubnetB
+      Tags:
+        - { Key: Name, Value: !Sub "${EnvironmentName}-nat-b" }
+
+  # ------------------------------------------------------------------
+  # Route tables
+  # ------------------------------------------------------------------
+  PublicRouteTable:
+    Type: AWS::EC2::RouteTable
+    Properties:
+      VpcId: !Ref Vpc
+      Tags:
+        - { Key: Name, Value: !Sub "${EnvironmentName}-public-rt" }
+
+  PublicDefaultRoute:
+    Type: AWS::EC2::Route
+    DependsOn: InternetGatewayAttachment
+    Properties:
+      RouteTableId: !Ref PublicRouteTable
+      DestinationCidrBlock: 0.0.0.0/0
+      GatewayId: !Ref InternetGateway
+
+  PublicSubnetARouteAssoc:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      SubnetId: !Ref PublicSubnetA
+      RouteTableId: !Ref PublicRouteTable
+
+  PublicSubnetBRouteAssoc:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      SubnetId: !Ref PublicSubnetB
+      RouteTableId: !Ref PublicRouteTable
+
+  PrivateRouteTableA:
+    Type: AWS::EC2::RouteTable
+    Properties:
+      VpcId: !Ref Vpc
+      Tags:
+        - { Key: Name, Value: !Sub "${EnvironmentName}-private-rt-a" }
+
+  PrivateDefaultRouteA:
+    Type: AWS::EC2::Route
+    Properties:
+      RouteTableId: !Ref PrivateRouteTableA
+      DestinationCidrBlock: 0.0.0.0/0
+      NatGatewayId: !Ref NatGatewayA
+
+  PrivateRouteTableB:
+    Type: AWS::EC2::RouteTable
+    Properties:
+      VpcId: !Ref Vpc
+      Tags:
+        - { Key: Name, Value: !Sub "${EnvironmentName}-private-rt-b" }
+
+  PrivateDefaultRouteB:
+    Type: AWS::EC2::Route
+    Properties:
+      RouteTableId: !Ref PrivateRouteTableB
+      DestinationCidrBlock: 0.0.0.0/0
+      NatGatewayId: !If [NatPerAz, !Ref NatGatewayB, !Ref NatGatewayA]
+
+  AppSubnetARouteAssoc:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      SubnetId: !Ref AppSubnetA
+      RouteTableId: !Ref PrivateRouteTableA
+
+  DbSubnetARouteAssoc:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      SubnetId: !Ref DbSubnetA
+      RouteTableId: !Ref PrivateRouteTableA
+
+  StagingSubnetRouteAssoc:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      SubnetId: !Ref StagingSubnet
+      RouteTableId: !Ref PrivateRouteTableA
+
+  AppSubnetBRouteAssoc:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      SubnetId: !Ref AppSubnetB
+      RouteTableId: !Ref PrivateRouteTableB
+
+  DbSubnetBRouteAssoc:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      SubnetId: !Ref DbSubnetB
+      RouteTableId: !Ref PrivateRouteTableB
+
+  # ------------------------------------------------------------------
+  # Site-to-Site VPN (optional)
+  # ------------------------------------------------------------------
+  VpnGateway:
+    Type: AWS::EC2::VPNGateway
+    Condition: WithVpn
+    Properties:
+      Type: ipsec.1
+      Tags:
+        - { Key: Name, Value: !Sub "${EnvironmentName}-vgw" }
+
+  VpnGatewayAttachment:
+    Type: AWS::EC2::VPCGatewayAttachment
+    Condition: WithVpn
+    Properties:
+      VpcId: !Ref Vpc
+      VpnGatewayId: !Ref VpnGateway
+
+  CustomerGateway:
+    Type: AWS::EC2::CustomerGateway
+    Condition: WithVpn
+    Properties:
+      Type: ipsec.1
+      BgpAsn: 65000
+      IpAddress: !Ref CustomerGatewayIp
+      Tags:
+        - { Key: Name, Value: !Sub "${EnvironmentName}-onprem-cgw" }
+
+  VpnConnection:
+    Type: AWS::EC2::VPNConnection
+    Condition: WithVpn
+    Properties:
+      Type: ipsec.1
+      StaticRoutesOnly: true
+      CustomerGatewayId: !Ref CustomerGateway
+      VpnGatewayId: !Ref VpnGateway
+      Tags:
+        - { Key: Name, Value: !Sub "${EnvironmentName}-onprem-vpn" }
+
+  VpnStaticRoute:
+    Type: AWS::EC2::VPNConnectionRoute
+    Condition: WithVpn
+    Properties:
+      VpnConnectionId: !Ref VpnConnection
+      DestinationCidrBlock: !Ref OnPremisesCidr
+
+  VpnRoutePropagation:
+    Type: AWS::EC2::VPNGatewayRoutePropagation
+    Condition: WithVpn
+    DependsOn: VpnGatewayAttachment
+    Properties:
+      VpnGatewayId: !Ref VpnGateway
+      RouteTableIds:
+        - !Ref PrivateRouteTableA
+        - !Ref PrivateRouteTableB
+
+  # ------------------------------------------------------------------
+  # VPC Flow Logs -> CloudWatch Logs
+  # ------------------------------------------------------------------
+  FlowLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !Sub "/${EnvironmentName}/vpc-flow-logs"
+      RetentionInDays: 90
+
+  FlowLogRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Principal: { Service: vpc-flow-logs.amazonaws.com }
+            Action: sts:AssumeRole
+      Policies:
+        - PolicyName: write-flow-logs
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Effect: Allow
+                Action:
+                  - logs:CreateLogStream
+                  - logs:PutLogEvents
+                  - logs:DescribeLogStreams
+                Resource: !GetAtt FlowLogGroup.Arn
+
+  VpcFlowLog:
+    Type: AWS::EC2::FlowLog
+    Properties:
+      ResourceId: !Ref Vpc
+      ResourceType: VPC
+      TrafficType: ALL
+      LogDestinationType: cloud-watch-logs
+      LogGroupName: !Ref FlowLogGroup
+      DeliverLogsPermissionArn: !GetAtt FlowLogRole.Arn
+
+Outputs:
+  VpcId:
+    Value: !Ref Vpc
+    Export: { Name: !Sub "${EnvironmentName}-VpcId" }
+  VpcCidr:
+    Value: !Ref VpcCidr
+    Export: { Name: !Sub "${EnvironmentName}-VpcCidr" }
+  OnPremisesCidr:
+    Value: !Ref OnPremisesCidr
+    Export: { Name: !Sub "${EnvironmentName}-OnPremisesCidr" }
+  PublicSubnets:
+    Value: !Join [",", [!Ref PublicSubnetA, !Ref PublicSubnetB]]
+    Export: { Name: !Sub "${EnvironmentName}-PublicSubnets" }
+  AppSubnetA:
+    Value: !Ref AppSubnetA
+    Export: { Name: !Sub "${EnvironmentName}-AppSubnetA" }
+  AppSubnetB:
+    Value: !Ref AppSubnetB
+    Export: { Name: !Sub "${EnvironmentName}-AppSubnetB" }
+  DbSubnetA:
+    Value: !Ref DbSubnetA
+    Export: { Name: !Sub "${EnvironmentName}-DbSubnetA" }
+  DbSubnetB:
+    Value: !Ref DbSubnetB
+    Export: { Name: !Sub "${EnvironmentName}-DbSubnetB" }
+  StagingSubnet:
+    Value: !Ref StagingSubnet
+    Export: { Name: !Sub "${EnvironmentName}-StagingSubnet" }
+  VpnConnectionId:
+    Condition: WithVpn
+    Value: !Ref VpnConnection
+    Description: Download the device configuration for this VPN from the VPC console.
