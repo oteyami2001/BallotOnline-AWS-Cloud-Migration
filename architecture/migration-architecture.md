@@ -150,6 +150,10 @@ BallotOnline's Hyper-V workloads use a **rehosting (lift-and-shift)** strategy. 
 └──────────────────────────┘
 ```
 
+![BallotOnline AWS MGN server migration flow](diagrams/aws-mgn-server-migration-flow.svg)
+
+Full runbook: [`server-migration/hyper-v-to-aws/`](../server-migration/hyper-v-to-aws/)
+
 ### Migration Process
 
 1. Initialize AWS Application Migration Service in the target Region.
