@@ -369,7 +369,9 @@ BallotOnline-AWS-Cloud-Migration/
 │   └── cloudformation/
 │
 ├── security/
-│   └── security-controls.md
+│   ├── security-controls.md
+│   ├── security-checklist.md
+│   └── iam-policies/
 │
 ├── monitoring/
 │   ├── cloudwatch/

@@ -7,10 +7,12 @@
 #   2. security  02-security.yaml  security groups, KMS key, IAM roles
 #   3. aurora    03-aurora.yaml    Aurora MySQL cluster
 #   4. dms       04-dms.yaml       DMS instance, endpoints, task
+#   5. governance 05-governance.yaml CloudTrail, GuardDuty, Access Analyzer
+#                                    (independent; deployed with "all")
 #
 # Usage:
-#   ./deploy.sh deploy [network|security|aurora|dms|all]
-#   ./deploy.sh delete [dms|aurora|security|network|all]
+#   ./deploy.sh deploy [network|security|governance|aurora|dms|all]
+#   ./deploy.sh delete [dms|aurora|governance|security|network|all]
 #   ./deploy.sh status
 #
 # Environment variables:
@@ -21,6 +23,8 @@
 #   ON_PREM_CIDR          optional, default 192.168.0.0/16
 #   SOURCE_SERVER_NAME    required for the dms stack (on-prem MySQL host/IP)
 #   MIGRATION_TYPE        optional, default full-load
+#   ENABLE_GUARDDUTY      optional, default true (false if a detector exists)
+#   ENABLE_SECURITY_HUB   optional, default false
 #
 # Cost note: NAT gateways, Aurora, and the DMS instance bill hourly.
 # Run "./deploy.sh delete all" when you are done.
@@ -33,7 +37,7 @@ here="$(cd "$(dirname "$0")" && pwd)"
 cfn() { aws cloudformation --region "$AWS_REGION" "$@"; }
 
 usage() {
-  sed -n '2,29p' "$0" | sed 's/^# \{0,1\}//'
+  sed -n '2,30p' "$0" | sed 's/^# \{0,1\}//'
   exit 1
 }
 
@@ -73,6 +77,11 @@ deploy_layer() {
     aurora)
       deploy_stack aurora 03-aurora.yaml
       ;;
+    governance)
+      deploy_stack governance 05-governance.yaml \
+        EnableGuardDuty="${ENABLE_GUARDDUTY:-true}" \
+        EnableSecurityHub="${ENABLE_SECURITY_HUB:-false}"
+      ;;
     dms)
       : "${SOURCE_SERVER_NAME:?Set SOURCE_SERVER_NAME to the on-premises MySQL host or IP}"
       deploy_stack dms 04-dms.yaml \
@@ -98,7 +107,7 @@ delete_layer() {
       fi
       delete_stack aurora
       ;;
-    dms|security|network)
+    dms|governance|security|network)
       delete_stack "$1"
       ;;
     *) usage ;;
@@ -112,7 +121,7 @@ target="${2:-all}"
 case "$action" in
   deploy)
     if [[ "$target" == "all" ]]; then
-      for layer in network security aurora; do deploy_layer "$layer"; done
+      for layer in network security governance aurora; do deploy_layer "$layer"; done
       if [[ -n "${SOURCE_SERVER_NAME:-}" ]]; then
         deploy_layer dms
       else
@@ -124,7 +133,7 @@ case "$action" in
     ;;
   delete)
     if [[ "$target" == "all" ]]; then
-      for layer in dms aurora security network; do delete_layer "$layer"; done
+      for layer in dms aurora governance security network; do delete_layer "$layer"; done
     else
       delete_layer "$target"
     fi

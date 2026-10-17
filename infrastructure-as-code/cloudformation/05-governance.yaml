@@ -1,0 +1,244 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Description: >-
+  BallotOnline migration - Security governance and detection. Multi-Region
+  CloudTrail with log file validation, KMS-encrypted and TLS-only log bucket,
+  CloudTrail delivery to CloudWatch Logs, Amazon GuardDuty, IAM Access
+  Analyzer, and optional AWS Security Hub.
+
+Parameters:
+  EnvironmentName:
+    Type: String
+    Default: ballotonline
+    AllowedPattern: "^[a-z][a-z0-9-]{1,30}$"
+  LogRetentionDays:
+    Type: Number
+    Default: 365
+    AllowedValues: [180, 365, 731, 1827]
+    Description: How long CloudTrail logs are kept in S3 and CloudWatch Logs.
+  EnableGuardDuty:
+    Type: String
+    Default: "true"
+    AllowedValues: ["true", "false"]
+    Description: Set false if a GuardDuty detector already exists in this Region.
+  EnableAccessAnalyzer:
+    Type: String
+    Default: "true"
+    AllowedValues: ["true", "false"]
+    Description: Set false if an account-level IAM Access Analyzer already exists in this Region.
+  EnableSecurityHub:
+    Type: String
+    Default: "false"
+    AllowedValues: ["true", "false"]
+    Description: Enable AWS Security Hub with default standards (adds cost).
+
+Conditions:
+  WithGuardDuty: !Equals [!Ref EnableGuardDuty, "true"]
+  WithAccessAnalyzer: !Equals [!Ref EnableAccessAnalyzer, "true"]
+  WithSecurityHub: !Equals [!Ref EnableSecurityHub, "true"]
+
+Resources:
+  # ------------------------------------------------------------------
+  # KMS key for audit logs (separate from the data key)
+  # ------------------------------------------------------------------
+  AuditKey:
+    Type: AWS::KMS::Key
+    DeletionPolicy: Retain
+    UpdateReplacePolicy: Retain
+    Properties:
+      Description: !Sub "${EnvironmentName} audit log encryption key"
+      EnableKeyRotation: true
+      KeyPolicy:
+        Version: "2012-10-17"
+        Statement:
+          - Sid: AccountAdministration
+            Effect: Allow
+            Principal: { AWS: !Sub "arn:${AWS::Partition}:iam::${AWS::AccountId}:root" }
+            Action: kms:*
+            Resource: "*"
+          - Sid: AllowCloudTrailEncrypt
+            Effect: Allow
+            Principal: { Service: cloudtrail.amazonaws.com }
+            Action: kms:GenerateDataKey*
+            Resource: "*"
+            Condition:
+              StringEquals:
+                aws:SourceArn: !Sub "arn:${AWS::Partition}:cloudtrail:${AWS::Region}:${AWS::AccountId}:trail/${EnvironmentName}-trail"
+              StringLike:
+                kms:EncryptionContext:aws:cloudtrail:arn: !Sub "arn:${AWS::Partition}:cloudtrail:*:${AWS::AccountId}:trail/*"
+          - Sid: AllowCloudTrailDescribeKey
+            Effect: Allow
+            Principal: { Service: cloudtrail.amazonaws.com }
+            Action: kms:DescribeKey
+            Resource: "*"
+          - Sid: AllowCloudWatchLogs
+            Effect: Allow
+            Principal: { Service: !Sub "logs.${AWS::Region}.amazonaws.com" }
+            Action:
+              - kms:Encrypt*
+              - kms:Decrypt*
+              - kms:ReEncrypt*
+              - kms:GenerateDataKey*
+              - kms:Describe*
+            Resource: "*"
+            Condition:
+              ArnLike:
+                kms:EncryptionContext:aws:logs:arn: !Sub "arn:${AWS::Partition}:logs:${AWS::Region}:${AWS::AccountId}:log-group:/${EnvironmentName}/*"
+
+  AuditKeyAlias:
+    Type: AWS::KMS::Alias
+    Properties:
+      AliasName: !Sub "alias/${EnvironmentName}-audit"
+      TargetKeyId: !Ref AuditKey
+
+  # ------------------------------------------------------------------
+  # CloudTrail log bucket: private, versioned, encrypted, TLS only
+  # ------------------------------------------------------------------
+  TrailBucket:
+    Type: AWS::S3::Bucket
+    DeletionPolicy: Retain
+    UpdateReplacePolicy: Retain
+    Properties:
+      BucketName: !Sub "${EnvironmentName}-cloudtrail-${AWS::AccountId}-${AWS::Region}"
+      VersioningConfiguration: { Status: Enabled }
+      BucketEncryption:
+        ServerSideEncryptionConfiguration:
+          - ServerSideEncryptionByDefault:
+              SSEAlgorithm: aws:kms
+              KMSMasterKeyID: !GetAtt AuditKey.Arn
+            BucketKeyEnabled: true
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: true
+        BlockPublicPolicy: true
+        IgnorePublicAcls: true
+        RestrictPublicBuckets: true
+      OwnershipControls:
+        Rules:
+          - ObjectOwnership: BucketOwnerEnforced
+      LifecycleConfiguration:
+        Rules:
+          - Id: archive-then-expire
+            Status: Enabled
+            Transitions:
+              - StorageClass: GLACIER_IR
+                TransitionInDays: 90
+            ExpirationInDays: !Ref LogRetentionDays
+            NoncurrentVersionExpiration:
+              NoncurrentDays: 30
+
+  TrailBucketPolicy:
+    Type: AWS::S3::BucketPolicy
+    Properties:
+      Bucket: !Ref TrailBucket
+      PolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Sid: AWSCloudTrailAclCheck
+            Effect: Allow
+            Principal: { Service: cloudtrail.amazonaws.com }
+            Action: s3:GetBucketAcl
+            Resource: !GetAtt TrailBucket.Arn
+            Condition:
+              StringEquals:
+                aws:SourceArn: !Sub "arn:${AWS::Partition}:cloudtrail:${AWS::Region}:${AWS::AccountId}:trail/${EnvironmentName}-trail"
+          - Sid: AWSCloudTrailWrite
+            Effect: Allow
+            Principal: { Service: cloudtrail.amazonaws.com }
+            Action: s3:PutObject
+            Resource: !Sub "${TrailBucket.Arn}/AWSLogs/${AWS::AccountId}/*"
+            Condition:
+              StringEquals:
+                aws:SourceArn: !Sub "arn:${AWS::Partition}:cloudtrail:${AWS::Region}:${AWS::AccountId}:trail/${EnvironmentName}-trail"
+          - Sid: DenyInsecureTransport
+            Effect: Deny
+            Principal: "*"
+            Action: s3:*
+            Resource:
+              - !GetAtt TrailBucket.Arn
+              - !Sub "${TrailBucket.Arn}/*"
+            Condition:
+              Bool:
+                aws:SecureTransport: "false"
+
+  # ------------------------------------------------------------------
+  # CloudTrail -> CloudWatch Logs (for metric filters and alarms)
+  # ------------------------------------------------------------------
+  TrailLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !Sub "/${EnvironmentName}/cloudtrail"
+      RetentionInDays: !Ref LogRetentionDays
+      KmsKeyId: !GetAtt AuditKey.Arn
+
+  TrailToLogsRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Principal: { Service: cloudtrail.amazonaws.com }
+            Action: sts:AssumeRole
+      Policies:
+        - PolicyName: deliver-to-cloudwatch-logs
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Effect: Allow
+                Action:
+                  - logs:CreateLogStream
+                  - logs:PutLogEvents
+                Resource: !GetAtt TrailLogGroup.Arn
+
+  Trail:
+    Type: AWS::CloudTrail::Trail
+    DependsOn: TrailBucketPolicy
+    Properties:
+      TrailName: !Sub "${EnvironmentName}-trail"
+      S3BucketName: !Ref TrailBucket
+      KMSKeyId: !GetAtt AuditKey.Arn
+      IsLogging: true
+      IsMultiRegionTrail: true
+      IncludeGlobalServiceEvents: true
+      EnableLogFileValidation: true
+      CloudWatchLogsLogGroupArn: !GetAtt TrailLogGroup.Arn
+      CloudWatchLogsRoleArn: !GetAtt TrailToLogsRole.Arn
+
+  # ------------------------------------------------------------------
+  # Threat detection and posture
+  # ------------------------------------------------------------------
+  GuardDutyDetector:
+    Type: AWS::GuardDuty::Detector
+    Condition: WithGuardDuty
+    Properties:
+      Enable: true
+      FindingPublishingFrequency: FIFTEEN_MINUTES
+
+  AccessAnalyzer:
+    Type: AWS::AccessAnalyzer::Analyzer
+    Condition: WithAccessAnalyzer
+    Properties:
+      AnalyzerName: !Sub "${EnvironmentName}-account-analyzer"
+      Type: ACCOUNT
+
+  SecurityHub:
+    Type: AWS::SecurityHub::Hub
+    Condition: WithSecurityHub
+    Properties:
+      EnableDefaultStandards: true
+      ControlFindingGenerator: SECURITY_CONTROL
+
+Outputs:
+  TrailBucketName:
+    Value: !Ref TrailBucket
+    Export: { Name: !Sub "${EnvironmentName}-TrailBucket" }
+  TrailLogGroupName:
+    Value: !Ref TrailLogGroup
+    Description: Used by the monitoring phase for CloudWatch metric filters and alarms.
+    Export: { Name: !Sub "${EnvironmentName}-TrailLogGroup" }
+  AuditKeyArn:
+    Value: !GetAtt AuditKey.Arn
+    Export: { Name: !Sub "${EnvironmentName}-AuditKeyArn" }
+  GuardDutyDetectorId:
+    Condition: WithGuardDuty
+    Value: !Ref GuardDutyDetector
+    Export: { Name: !Sub "${EnvironmentName}-GuardDutyDetectorId" }
