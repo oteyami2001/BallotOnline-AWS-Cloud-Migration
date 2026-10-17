@@ -93,6 +93,12 @@ The primary objectives of this project are to:
 
 ### High-Level Architecture
 
+![BallotOnline AWS target architecture](architecture/diagrams/aws-target-architecture.svg)
+
+See [`architecture/migration-architecture.md`](architecture/migration-architecture.md) for the full before / during / after design.
+
+#### Text Overview
+
 ```text
             ON-PREMISES                                   AWS CLOUD (VPC)
  ┌──────────────────────────────┐           ┌──────────────────────────────────────┐
