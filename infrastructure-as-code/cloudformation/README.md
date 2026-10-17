@@ -4,6 +4,8 @@ The BallotOnline target environment is defined as seven CloudFormation stacks. T
 
 ![BallotOnline AWS target architecture](../../architecture/diagrams/aws-target-architecture.svg)
 
+> **Validation status:** these templates are portfolio extensions of the UMGC course project. They pass `cfn-lint` in CI, but **none of the stacks, including the governance stack, has been deployed to a real AWS account.** Treat them as a reviewed design, and test them in a sandbox account before using them.
+
 ---
 
 ## 📦 Stacks

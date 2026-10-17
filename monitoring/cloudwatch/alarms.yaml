@@ -1,0 +1,218 @@
+# =====================================================================
+# BallotOnline — CloudWatch alarm catalog
+# =====================================================================
+# A readable reference of every alarm and event rule used to monitor the
+# migrated environment. This file is documentation, not a deployable
+# template: the deployable definitions live in
+#   infrastructure-as-code/cloudformation/06-monitoring.yaml
+# so nothing is defined twice.
+#
+# source values:
+#   native      - published by the AWS service automatically
+#   agent       - requires the CloudWatch agent on the instance
+#                 (installed by 07-operations.yaml)
+#   log-filter  - CloudWatch Logs metric filter on CloudTrail logs
+#                 (log group from 05-governance.yaml)
+#   event       - EventBridge rule on AWS service events
+#
+# status values:
+#   implemented - defined in a CloudFormation template in this repo
+#   recommended - suggested production addition, not in the templates
+#
+# None of these alarms has been deployed to a real AWS account; the
+# templates are validated with cfn-lint only.
+# =====================================================================
+
+alert_topic:
+  name: ballotonline-alerts
+  encryption: dedicated KMS key (06-monitoring.yaml AlertKey)
+  publishers: [cloudwatch.amazonaws.com, events.amazonaws.com]
+  subscribers: ["<ops-team-email>"]
+
+alarms:
+  # --------------------------- Amazon EC2 ---------------------------
+  - name: ballotonline-<server>-cpu-high
+    workload: Intranet / FTP / NTP EC2
+    namespace: AWS/EC2
+    metric: CPUUtilization
+    statistic: Average
+    condition: "> 80% for 3 x 5 min"
+    source: native
+    action: notify
+    status: implemented
+
+  - name: ballotonline-<server>-system-check
+    workload: Intranet / FTP / NTP EC2
+    namespace: AWS/EC2
+    metric: StatusCheckFailed_System
+    statistic: Maximum
+    condition: ">= 1 for 2 x 1 min"
+    source: native
+    action: "notify + EC2 auto-recover (arn:aws:automate:<region>:ec2:recover)"
+    status: implemented
+
+  - name: ballotonline-<server>-instance-check
+    workload: Intranet / FTP / NTP EC2
+    namespace: AWS/EC2
+    metric: StatusCheckFailed_Instance
+    statistic: Maximum
+    condition: ">= 1 for 3 x 1 min"
+    source: native
+    action: "notify (guest OS problem; recover/reboot does not fix it automatically)"
+    status: recommended
+
+  - name: ballotonline-<server>-memory-high
+    workload: Intranet / FTP / NTP EC2
+    namespace: CWAgent
+    metric: "mem_used_percent (Linux) / Memory % Committed Bytes In Use (Windows)"
+    statistic: Average
+    condition: "> 85% for 3 x 5 min"
+    source: agent
+    action: notify
+    status: recommended
+
+  - name: ballotonline-<server>-disk-low
+    workload: Intranet / FTP / NTP EC2
+    namespace: CWAgent
+    metric: "disk used_percent (Linux /) / LogicalDisk % Free Space (Windows C:)"
+    statistic: Maximum
+    condition: "> 85% used (Linux) / < 15% free (Windows)"
+    source: agent
+    action: notify
+    status: recommended
+
+  # ------------------------- Aurora MySQL ---------------------------
+  - name: ballotonline-aurora-cpu-high
+    namespace: AWS/RDS
+    dimension: DBClusterIdentifier
+    metric: CPUUtilization
+    statistic: Average
+    condition: "> 80% for 3 x 5 min"
+    source: native
+    status: implemented
+
+  - name: ballotonline-aurora-connections-high
+    namespace: AWS/RDS
+    dimension: DBClusterIdentifier
+    metric: DatabaseConnections
+    statistic: Maximum
+    condition: "> 80 for 2 x 5 min (db.t4g.medium allows about 90)"
+    source: native
+    status: implemented
+
+  - name: ballotonline-aurora-memory-low
+    namespace: AWS/RDS
+    dimension: DBClusterIdentifier
+    metric: FreeableMemory
+    statistic: Minimum
+    condition: "< 256 MB for 3 x 5 min"
+    source: native
+    status: implemented
+
+  - name: ballotonline-aurora-replica-lag
+    namespace: AWS/RDS
+    dimension: DBClusterIdentifier
+    metric: AuroraReplicaLagMaximum
+    statistic: Maximum
+    condition: "> 1000 ms for 5 x 1 min"
+    source: native
+    status: implemented
+
+  - name: ballotonline-aurora-volume-growth
+    namespace: AWS/RDS
+    dimension: DBClusterIdentifier
+    metric: VolumeBytesUsed
+    statistic: Maximum
+    condition: "trend review, or alarm above a budgeted size (for example 50 GB)"
+    source: native
+    note: >-
+      Aurora storage grows automatically, so running out of space is not the
+      main risk; unexpected growth (cost, runaway tables) is.
+    status: recommended
+
+  # ----------------------------- AWS DMS ----------------------------
+  - name: ballotonline-dms-cpu-high
+    namespace: AWS/DMS
+    dimension: ReplicationInstanceIdentifier
+    metric: CPUUtilization
+    condition: "> 80% for 3 x 5 min"
+    source: native
+    status: implemented
+
+  - name: ballotonline-dms-storage-low
+    namespace: AWS/DMS
+    dimension: ReplicationInstanceIdentifier
+    metric: FreeStorageSpace
+    condition: "< 10 GB for 2 x 5 min"
+    source: native
+    status: implemented
+
+  - name: ballotonline-dms-cdc-source-latency
+    namespace: AWS/DMS
+    dimension: "ReplicationInstanceIdentifier + ReplicationTaskIdentifier"
+    metric: CDCLatencySource
+    condition: "> 60 s for 3 x 5 min"
+    source: native
+    note: Created only when DmsTaskResourceId is supplied; meaningful for full-load-and-cdc tasks.
+    status: implemented
+
+  - name: ballotonline-dms-cdc-target-latency
+    namespace: AWS/DMS
+    dimension: "ReplicationInstanceIdentifier + ReplicationTaskIdentifier"
+    metric: CDCLatencyTarget
+    condition: "> 60 s for 3 x 5 min"
+    source: native
+    status: implemented
+
+  # --------------------------- Network ------------------------------
+  - name: ballotonline-vpn-down
+    namespace: AWS/VPN
+    dimension: VpnId
+    metric: TunnelState
+    statistic: Maximum
+    condition: "< 1 for 2 x 5 min (all tunnels down)"
+    source: native
+    status: implemented
+
+  - name: ballotonline-vpc-rejected-traffic-spike
+    namespace: BallotOnline/Network
+    metric: RejectedConnections
+    condition: "metric filter on VPC Flow Logs (action = REJECT), alarm on unusual spikes"
+    source: log-filter
+    note: Investigate with the Logs Insights query in monitoring/cloudwatch/README.md first.
+    status: recommended
+
+  # --------------------- Security (CloudTrail) ----------------------
+  - { name: ballotonline-security-root-usage,              namespace: BallotOnline/Security, metric: RootAccountUsage,       condition: ">= 1 in 5 min",  source: log-filter, status: implemented }
+  - { name: ballotonline-security-console-login-no-mfa,    namespace: BallotOnline/Security, metric: ConsoleLoginWithoutMfa, condition: ">= 1 in 5 min",  source: log-filter, status: implemented }
+  - { name: ballotonline-security-unauthorized-api-calls,  namespace: BallotOnline/Security, metric: UnauthorizedApiCalls,   condition: ">= 10 in 5 min", source: log-filter, status: implemented }
+  - { name: ballotonline-security-iam-policy-changes,      namespace: BallotOnline/Security, metric: IamPolicyChanges,       condition: ">= 1 in 5 min",  source: log-filter, status: implemented }
+  - { name: ballotonline-security-sg-changes,              namespace: BallotOnline/Security, metric: SecurityGroupChanges,   condition: ">= 1 in 5 min",  source: log-filter, status: implemented }
+  - { name: ballotonline-security-cloudtrail-changes,      namespace: BallotOnline/Security, metric: CloudTrailChanges,      condition: ">= 1 in 5 min",  source: log-filter, status: implemented }
+  - { name: ballotonline-security-kms-key-disable,         namespace: BallotOnline/Security, metric: KmsKeyDisableOrDelete,  condition: ">= 1 in 5 min",  source: log-filter, status: implemented }
+
+event_rules:
+  - name: ballotonline-guardduty-high-severity
+    pattern: "source aws.guardduty, detail-type 'GuardDuty Finding', severity >= 7"
+    source: event
+    status: implemented
+  - name: ballotonline-aurora-failover
+    pattern: "source aws.rds, detail-type 'RDS DB Cluster Event', category failover"
+    source: event
+    status: implemented
+  - name: ballotonline-dms-task-state
+    pattern: "source aws.dms, detail-type 'DMS Replication Task State Change' (includes task failures)"
+    source: event
+    status: implemented
+  - name: ballotonline-ssm-automation-failed
+    pattern: "source aws.ssm, detail-type 'EC2 Automation Execution Status-change Notification', status Failed"
+    source: event
+    status: recommended
+
+migration_monitoring:
+  - service: AWS MGN
+    what: Replication state, lag, and backlog per source server
+    where: "MGN console, or server-migration/hyper-v-to-aws/scripts/mgn-lifecycle.sh status"
+    source: native (MGN API)
+    note: Reviewed manually during the migration window; no CloudWatch alarm in the templates.
+    status: implemented (script)

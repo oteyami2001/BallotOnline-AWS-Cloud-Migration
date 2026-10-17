@@ -325,7 +325,9 @@ See [`infrastructure-as-code/cloudformation/`](../infrastructure-as-code/cloudfo
 | DMS CDC latency | Source or target latency > 60 seconds (during migration) |
 | VPN tunnel state | Tunnel down |
 
-See the [`monitoring/`](../monitoring/) folder for CloudWatch, Systems Manager, and Trusted Advisor details.
+![BallotOnline observability and operations](diagrams/monitoring-operations.svg)
+
+See the [`monitoring/`](../monitoring/) folder for CloudWatch, Systems Manager, and Trusted Advisor details, and the [postmigration operations model](../monitoring/postmigration-operations.md).
 
 ---
 
