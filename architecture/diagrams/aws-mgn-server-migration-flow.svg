@@ -1,0 +1,130 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1400" height="640" viewBox="0 0 1400 640" font-family="Arial, Helvetica, sans-serif">
+<defs>
+<marker id="ag" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0,0 L10,5 L0,10 z" fill="#01A88D"/></marker>
+<marker id="ak" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0,0 L10,5 L0,10 z" fill="#545B64"/></marker>
+<marker id="ao" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0,0 L10,5 L0,10 z" fill="#ED7100"/></marker>
+</defs>
+<rect width="1400" height="640" fill="#FFFFFF"/>
+<text x="700.0" y="38" font-size="22" font-weight="bold" fill="#232F3E" text-anchor="middle" >BallotOnline Server Migration — Hyper-V to Amazon EC2</text>
+<text x="700.0" y="62" font-size="13" font-weight="normal" fill="#545B64" text-anchor="middle" >Rehost (lift-and-shift) with AWS Application Migration Service: continuous block-level replication, test launch, cutover</text>
+<rect x="30" y="100" width="260" height="340" rx="4" fill="#F7F8F8" stroke="#545B64" stroke-width="1.5" stroke-dasharray="6 4"/>
+<text x="40" y="118" font-size="12" font-weight="bold" fill="#232F3E" text-anchor="start" >BallotOnline On-Premises</text>
+<rect x="45" y="130" width="230" height="295" rx="4" fill="#FFFFFF" stroke="#545B64" stroke-width="1.5"/>
+<text x="55" y="148" font-size="12" font-weight="bold" fill="#232F3E" text-anchor="start" >Microsoft Hyper-V Host</text>
+<g opacity="1"><rect x="68.0" y="168.0" width="44" height="44" rx="6" fill="#5A6B7B"/>
+<text x="90" y="194.5" font-size="11" font-weight="bold" fill="#FFFFFF" text-anchor="middle" >WEB</text>
+</g>
+<text x="125" y="186" font-size="12" font-weight="bold" fill="#232F3E" text-anchor="start" >Intranet VM</text>
+<rect x="125" y="194" width="122" height="18" rx="9" fill="#E6F7F4" stroke="#01A88D"/>
+<text x="186" y="207" font-size="11" font-weight="bold" fill="#017A67" text-anchor="middle" >Replication Agent</text>
+<g opacity="1"><rect x="68.0" y="253.0" width="44" height="44" rx="6" fill="#5A6B7B"/>
+<text x="90" y="279.5" font-size="11" font-weight="bold" fill="#FFFFFF" text-anchor="middle" >FTP</text>
+</g>
+<text x="125" y="271" font-size="12" font-weight="bold" fill="#232F3E" text-anchor="start" >FTP VM</text>
+<rect x="125" y="279" width="122" height="18" rx="9" fill="#E6F7F4" stroke="#01A88D"/>
+<text x="186" y="292" font-size="11" font-weight="bold" fill="#017A67" text-anchor="middle" >Replication Agent</text>
+<g opacity="1"><rect x="68.0" y="338.0" width="44" height="44" rx="6" fill="#5A6B7B"/>
+<text x="90" y="364.5" font-size="11" font-weight="bold" fill="#FFFFFF" text-anchor="middle" >NTP</text>
+</g>
+<text x="125" y="356" font-size="12" font-weight="bold" fill="#232F3E" text-anchor="start" >NTP VM</text>
+<rect x="125" y="364" width="122" height="18" rx="9" fill="#E6F7F4" stroke="#01A88D"/>
+<text x="186" y="377" font-size="11" font-weight="bold" fill="#017A67" text-anchor="middle" >Replication Agent</text>
+<rect x="306" y="100" width="70" height="340" rx="4" fill="#F4EFFF" stroke="#8C4FFF" stroke-width="1.5" stroke-dasharray="4 3"/>
+<text x="340" y="330" font-size="13" font-weight="bold" fill="#8C4FFF" text-anchor="middle" transform="rotate(-90 340 330)">Site-to-Site VPN</text>
+<text x="358" y="330" font-size="11" font-weight="normal" fill="#8C4FFF" text-anchor="middle" transform="rotate(-90 358 330)">IPsec encrypted</text>
+<rect x="392" y="85" width="978" height="385" rx="4" fill="none" stroke="#00A4A6" stroke-width="1.5"/>
+<text x="402" y="103" font-size="12" font-weight="bold" fill="#00A4A6" text-anchor="start" >AWS Region</text>
+<g opacity="1"><rect x="1042.0" y="99.0" width="36" height="36" rx="6" fill="#01A88D"/>
+<text x="1060" y="121.5" font-size="11" font-weight="bold" fill="#FFFFFF" text-anchor="middle" >MGN</text>
+</g>
+<text x="1086" y="114" font-size="12" font-weight="bold" fill="#232F3E" text-anchor="start" >AWS Application Migration Service</text>
+<text x="1086" y="129" font-size="11" font-weight="normal" fill="#545B64" text-anchor="start" >Regional endpoint · orchestration</text>
+<rect x="410" y="150" width="944" height="305" rx="4" fill="none" stroke="#8C4FFF" stroke-width="1.5"/>
+<text x="420" y="168" font-size="12" font-weight="bold" fill="#8C4FFF" text-anchor="start" >VPC</text>
+<rect x="428" y="180" width="322" height="260" rx="4" fill="#E6F7F4" stroke="#01A88D" stroke-width="1.5"/>
+<text x="438" y="198" font-size="12" font-weight="bold" fill="#017A67" text-anchor="start" >Staging Subnet</text>
+<rect x="780" y="180" width="558" height="260" rx="4" fill="#E6F2F8" stroke="#147EBA" stroke-width="1.5"/>
+<text x="790" y="198" font-size="12" font-weight="bold" fill="#0B5394" text-anchor="start" >Private App Subnet</text>
+<g opacity="1"><rect x="486.0" y="241.0" width="48" height="48" rx="6" fill="#01A88D"/>
+<text x="510" y="269.5" font-size="13" font-weight="bold" fill="#FFFFFF" text-anchor="middle" >REP</text>
+</g>
+<text x="510" y="305.0" font-size="12" font-weight="normal" fill="#232F3E" text-anchor="middle" >Replication Servers</text>
+<text x="510" y="319.0" font-size="11" font-weight="normal" fill="#545B64" text-anchor="middle" >t3.small</text>
+<g opacity="1"><rect x="646.0" y="241.0" width="48" height="48" rx="6" fill="#7AA116"/>
+<text x="670" y="269.5" font-size="13" font-weight="bold" fill="#FFFFFF" text-anchor="middle" >EBS</text>
+</g>
+<text x="670" y="305.0" font-size="12" font-weight="normal" fill="#232F3E" text-anchor="middle" >Staging Volumes</text>
+<text x="670" y="319.0" font-size="11" font-weight="normal" fill="#545B64" text-anchor="middle" >KMS-encrypted</text>
+<g opacity="1"><rect x="568.0" y="353.0" width="44" height="44" rx="6" fill="#7AA116"/>
+<text x="590" y="379.5" font-size="11" font-weight="bold" fill="#FFFFFF" text-anchor="middle" >SNAP</text>
+</g>
+<text x="590" y="413.0" font-size="12" font-weight="normal" fill="#232F3E" text-anchor="middle" >Point-in-time</text>
+<text x="590" y="427.0" font-size="11" font-weight="normal" fill="#545B64" text-anchor="middle" >snapshots</text>
+<path d="M536,265 L644,265" fill="none" stroke="#01A88D" stroke-width="2" marker-end="url(#ag)"/>
+<path d="M636,326 L608,350" fill="none" stroke="#545B64" stroke-width="1.5" stroke-dasharray="3 3" marker-end="url(#ak)"/>
+<path d="M275,140 L1040,117" fill="none" stroke="#545B64" stroke-width="2" marker-end="url(#ak)"/>
+<rect x="573.3" y="115" width="253.4" height="18" rx="9" fill="#FFFFFF" stroke="#545B64" stroke-width="1"/>
+<text x="700" y="128" font-size="11" font-weight="bold" fill="#545B64" text-anchor="middle" >TCP 443 · agent control / registration</text>
+<path d="M277,268 L484,265" fill="none" stroke="#01A88D" stroke-width="2" stroke-dasharray="6 4" marker-end="url(#ag)"/>
+<rect x="326.85" y="228" width="146.29999999999998" height="18" rx="9" fill="#FFFFFF" stroke="#01A88D" stroke-width="1"/>
+<text x="400" y="241" font-size="11" font-weight="bold" fill="#01A88D" text-anchor="middle" >TCP 1500 · block data</text>
+<rect x="798" y="210" width="250" height="220" rx="6" fill="#FFFFFF" stroke="#ED7100" stroke-width="1.5" stroke-dasharray="5 4"/>
+<text x="923" y="232" font-size="12" font-weight="bold" fill="#B85A00" text-anchor="middle" >Test Instances</text>
+<rect x="1072" y="210" width="252" height="220" rx="6" fill="#FFFFFF" stroke="#ED7100" stroke-width="1.5"/>
+<text x="1198" y="232" font-size="12" font-weight="bold" fill="#B85A00" text-anchor="middle" >Cutover Instances (production)</text>
+<g opacity="0.55"><rect x="819.0" y="271.0" width="48" height="48" rx="6" fill="#ED7100"/>
+<text x="843" y="299.5" font-size="13" font-weight="bold" fill="#FFFFFF" text-anchor="middle" >EC2</text>
+</g>
+<text x="843" y="335.0" font-size="12" font-weight="normal" fill="#232F3E" text-anchor="middle" >Intranet</text>
+<g opacity="1"><rect x="1094.0" y="271.0" width="48" height="48" rx="6" fill="#ED7100"/>
+<text x="1118" y="299.5" font-size="13" font-weight="bold" fill="#FFFFFF" text-anchor="middle" >EC2</text>
+</g>
+<text x="1118" y="335.0" font-size="12" font-weight="normal" fill="#232F3E" text-anchor="middle" >Intranet</text>
+<g opacity="0.55"><rect x="899.0" y="271.0" width="48" height="48" rx="6" fill="#ED7100"/>
+<text x="923" y="299.5" font-size="13" font-weight="bold" fill="#FFFFFF" text-anchor="middle" >EC2</text>
+</g>
+<text x="923" y="335.0" font-size="12" font-weight="normal" fill="#232F3E" text-anchor="middle" >FTP</text>
+<g opacity="1"><rect x="1174.0" y="271.0" width="48" height="48" rx="6" fill="#ED7100"/>
+<text x="1198" y="299.5" font-size="13" font-weight="bold" fill="#FFFFFF" text-anchor="middle" >EC2</text>
+</g>
+<text x="1198" y="335.0" font-size="12" font-weight="normal" fill="#232F3E" text-anchor="middle" >FTP</text>
+<g opacity="0.55"><rect x="979.0" y="271.0" width="48" height="48" rx="6" fill="#ED7100"/>
+<text x="1003" y="299.5" font-size="13" font-weight="bold" fill="#FFFFFF" text-anchor="middle" >EC2</text>
+</g>
+<text x="1003" y="335.0" font-size="12" font-weight="normal" fill="#232F3E" text-anchor="middle" >NTP</text>
+<g opacity="1"><rect x="1254.0" y="271.0" width="48" height="48" rx="6" fill="#ED7100"/>
+<text x="1278" y="299.5" font-size="13" font-weight="bold" fill="#FFFFFF" text-anchor="middle" >EC2</text>
+</g>
+<text x="1278" y="335.0" font-size="12" font-weight="normal" fill="#232F3E" text-anchor="middle" >NTP</text>
+<text x="923" y="385" font-size="11" font-weight="normal" fill="#545B64" text-anchor="middle" >Validate with checklist,</text>
+<text x="923" y="401" font-size="11" font-weight="normal" fill="#545B64" text-anchor="middle" >then terminate</text>
+<text x="1198" y="385" font-size="11" font-weight="normal" fill="#545B64" text-anchor="middle" >DNS switch → monitor →</text>
+<text x="1198" y="401" font-size="11" font-weight="normal" fill="#545B64" text-anchor="middle" >finalize cutover</text>
+<path d="M750,330 L796,330" fill="none" stroke="#ED7100" stroke-width="2" marker-end="url(#ao)"/>
+<rect x="707.6" y="343" width="114.8" height="18" rx="9" fill="#FFFFFF" stroke="#ED7100" stroke-width="1"/>
+<text x="765" y="356" font-size="11" font-weight="bold" fill="#ED7100" text-anchor="middle" >Launch + convert</text>
+<path d="M1048,330 L1070,330" fill="none" stroke="#ED7100" stroke-width="2" marker-end="url(#ao)"/>
+<text x="30" y="510" font-size="12" font-weight="bold" fill="#232F3E" text-anchor="start" >AWS MGN lifecycle  ·  scripts/mgn-lifecycle.sh</text>
+<polygon points="30,522 214,522 228,544.0 214,566 30,566" fill="#E6F7F4" stroke="#147EBA" stroke-width="1"/>
+<text x="124.0" y="549" font-size="12" font-weight="bold" fill="#0B5394" text-anchor="middle" >1. Not ready</text>
+<text x="124.0" y="586" font-size="11" font-weight="normal" fill="#545B64" text-anchor="middle" >install agent + initial sync</text>
+<polygon points="218,522 402,522 416,544.0 402,566 218,566 232,544.0" fill="#E6F7F4" stroke="#147EBA" stroke-width="1"/>
+<text x="318.0" y="549" font-size="12" font-weight="bold" fill="#0B5394" text-anchor="middle" >2. Ready for testing</text>
+<text x="318.0" y="586" font-size="11" font-weight="normal" fill="#545B64" text-anchor="middle" >sync complete</text>
+<polygon points="406,522 590,522 604,544.0 590,566 406,566 420,544.0" fill="#FFF3E6" stroke="#147EBA" stroke-width="1"/>
+<text x="506.0" y="549" font-size="12" font-weight="bold" fill="#0B5394" text-anchor="middle" >3. Testing</text>
+<text x="506.0" y="586" font-size="11" font-weight="normal" fill="#545B64" text-anchor="middle" font-family="Consolas, Menlo, monospace">test</text>
+<polygon points="594,522 778,522 792,544.0 778,566 594,566 608,544.0" fill="#FFF3E6" stroke="#147EBA" stroke-width="1"/>
+<text x="694.0" y="549" font-size="12" font-weight="bold" fill="#0B5394" text-anchor="middle" >4. Ready for cutover</text>
+<text x="694.0" y="586" font-size="11" font-weight="normal" fill="#545B64" text-anchor="middle" font-family="Consolas, Menlo, monospace">cleanup → ready</text>
+<polygon points="782,522 966,522 980,544.0 966,566 782,566 796,544.0" fill="#E6F2F8" stroke="#147EBA" stroke-width="1"/>
+<text x="882.0" y="549" font-size="12" font-weight="bold" fill="#0B5394" text-anchor="middle" >5. Cutting over</text>
+<text x="882.0" y="586" font-size="11" font-weight="normal" fill="#545B64" text-anchor="middle" font-family="Consolas, Menlo, monospace">cutover</text>
+<polygon points="970,522 1154,522 1168,544.0 1154,566 970,566 984,544.0" fill="#E6F2F8" stroke="#147EBA" stroke-width="1"/>
+<text x="1070.0" y="549" font-size="12" font-weight="bold" fill="#0B5394" text-anchor="middle" >6. Cutover</text>
+<text x="1070.0" y="586" font-size="11" font-weight="normal" fill="#545B64" text-anchor="middle" font-family="Consolas, Menlo, monospace">validate → finalize</text>
+<polygon points="1158,522 1342,522 1356,544.0 1342,566 1158,566 1172,544.0" fill="#E6F2F8" stroke="#147EBA" stroke-width="1"/>
+<text x="1258.0" y="549" font-size="12" font-weight="bold" fill="#0B5394" text-anchor="middle" >7. Archived</text>
+<text x="1258.0" y="586" font-size="11" font-weight="normal" fill="#545B64" text-anchor="middle" font-family="Consolas, Menlo, monospace">archive</text>
+<text x="1370" y="628" font-size="10" font-weight="normal" fill="#879596" text-anchor="end" >Instance types, subnets, and Region are illustrative. Source VMs stay intact until the rollback window closes.</text>
+</svg>
