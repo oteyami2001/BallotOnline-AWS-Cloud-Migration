@@ -1,0 +1,113 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1400" height="730" viewBox="0 0 1400 730" font-family="Arial, Helvetica, sans-serif">
+<defs>
+<marker id="ab" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0,0 L10,5 L0,10 z" fill="#1A73E8"/></marker>
+<marker id="ak" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0,0 L10,5 L0,10 z" fill="#545B64"/></marker>
+</defs>
+<rect width="1400" height="730" fill="#FFFFFF"/>
+<text x="700.0" y="38" font-size="22" font-weight="bold" fill="#232F3E" text-anchor="middle" >BallotOnline HR Database Migration — AWS DMS</text>
+<text x="700.0" y="62" font-size="13" font-weight="normal" fill="#545B64" text-anchor="middle" >On-premises MySQL → AWS DMS (Full Load + CDC) → Amazon Aurora MySQL  ·  Replatform strategy</text>
+<rect x="30" y="100" width="260" height="330" rx="4" fill="#F7F8F8" stroke="#545B64" stroke-width="1.5" stroke-dasharray="6 4"/>
+<text x="40" y="118" font-size="12" font-weight="bold" fill="#232F3E" text-anchor="start" >BallotOnline On-Premises</text>
+<rect x="136.0" y="226.0" width="48" height="48" rx="6" fill="#5A6B7B"/>
+<text x="160" y="254.5" font-size="13" font-weight="bold" fill="#FFFFFF" text-anchor="middle" >MySQL</text>
+<text x="160" y="290.0" font-size="12" font-weight="normal" fill="#232F3E" text-anchor="middle" >MySQL HR Database</text>
+<text x="160" y="304.0" font-size="11" font-weight="normal" fill="#545B64" text-anchor="middle" >Source</text>
+<text x="70" y="340" font-size="11" font-weight="normal" fill="#545B64" text-anchor="start" >• binlog_format = ROW</text>
+<text x="70" y="358" font-size="11" font-weight="normal" fill="#545B64" text-anchor="start" >• Dedicated DMS user</text>
+<text x="70" y="376" font-size="11" font-weight="normal" fill="#545B64" text-anchor="start" >• Least-privilege grants</text>
+<text x="70" y="394" font-size="11" font-weight="normal" fill="#545B64" text-anchor="start" >• Primary keys reviewed</text>
+<rect x="306" y="100" width="70" height="330" rx="4" fill="#F4EFFF" stroke="#8C4FFF" stroke-width="1.5" stroke-dasharray="4 3"/>
+<text x="340" y="180" font-size="13" font-weight="bold" fill="#8C4FFF" text-anchor="middle" transform="rotate(-90 340 180)">Site-to-Site VPN</text>
+<text x="358" y="180" font-size="11" font-weight="normal" fill="#8C4FFF" text-anchor="middle" transform="rotate(-90 358 180)">IPsec encrypted</text>
+<rect x="392" y="85" width="980" height="390" rx="4" fill="none" stroke="#00A4A6" stroke-width="1.5"/>
+<text x="402" y="103" font-size="12" font-weight="bold" fill="#00A4A6" text-anchor="start" >AWS Region</text>
+<rect x="410" y="115" width="944" height="300" rx="4" fill="none" stroke="#8C4FFF" stroke-width="1.5"/>
+<text x="420" y="133" font-size="12" font-weight="bold" fill="#8C4FFF" text-anchor="start" >VPC — Private Subnets</text>
+<rect x="430" y="145" width="520" height="255" rx="4" fill="#E6F7F4" stroke="#01A88D" stroke-width="1.5"/>
+<text x="440" y="163" font-size="12" font-weight="bold" fill="#017A67" text-anchor="start" >AWS DMS Replication Instance</text>
+<rect x="450" y="185" width="150" height="125" rx="6" fill="#FFFFFF" stroke="#01A88D" stroke-width="1.5"/>
+<text x="525" y="208" font-size="12" font-weight="bold" fill="#017A67" text-anchor="middle" >Source Endpoint</text>
+<text x="525" y="230" font-size="12" font-weight="bold" fill="#232F3E" text-anchor="middle" font-family="Consolas, Menlo, monospace" >ccs640mysql</text>
+<text x="525" y="256" font-size="11" font-weight="normal" fill="#545B64" text-anchor="middle" >Engine: MySQL</text>
+<text x="525" y="274" font-size="11" font-weight="normal" fill="#545B64" text-anchor="middle" >Port: 3306</text>
+<rect x="615" y="185" width="150" height="125" rx="6" fill="#FFFFFF" stroke="#01A88D" stroke-width="1.5"/>
+<text x="690" y="208" font-size="12" font-weight="bold" fill="#017A67" text-anchor="middle" >Migration Task</text>
+<text x="690" y="230" font-size="12" font-weight="bold" fill="#232F3E" text-anchor="middle" font-family="Consolas, Menlo, monospace" >ccs640migration</text>
+<text x="690" y="256" font-size="11" font-weight="normal" fill="#545B64" text-anchor="middle" >Full Load (+ CDC)</text>
+<text x="690" y="274" font-size="11" font-weight="normal" fill="#545B64" text-anchor="middle" >DROP_AND_CREATE</text>
+<rect x="780" y="185" width="150" height="125" rx="6" fill="#FFFFFF" stroke="#01A88D" stroke-width="1.5"/>
+<text x="855" y="208" font-size="12" font-weight="bold" fill="#017A67" text-anchor="middle" >Target Endpoint</text>
+<text x="855" y="230" font-size="12" font-weight="bold" fill="#232F3E" text-anchor="middle" font-family="Consolas, Menlo, monospace" >ccs640target</text>
+<text x="855" y="256" font-size="11" font-weight="normal" fill="#545B64" text-anchor="middle" >Engine: Aurora MySQL</text>
+<text x="855" y="274" font-size="11" font-weight="normal" fill="#545B64" text-anchor="middle" >Port: 3306 · TLS</text>
+<path d="M600,247 L613,247" fill="none" stroke="#1A73E8" stroke-width="2" marker-end="url(#ab)"/>
+<path d="M765,247 L778,247" fill="none" stroke="#1A73E8" stroke-width="2" marker-end="url(#ab)"/>
+<text x="690" y="345" font-size="11" font-weight="normal" fill="#545B64" text-anchor="middle" >Table mappings select schema &amp; tables</text>
+<text x="690" y="363" font-size="11" font-weight="normal" fill="#545B64" text-anchor="middle" >Task logs &amp; metrics → Amazon CloudWatch</text>
+<circle cx="600" cy="185" r="11" fill="#D13212" stroke="#FFFFFF" stroke-width="2"/>
+<text x="600" y="189.5" font-size="13" font-weight="bold" fill="#FFFFFF" text-anchor="middle" >1</text>
+<circle cx="765" cy="185" r="11" fill="#D13212" stroke="#FFFFFF" stroke-width="2"/>
+<text x="765" y="189.5" font-size="13" font-weight="bold" fill="#FFFFFF" text-anchor="middle" >2</text>
+<path d="M186,250 L448,250" fill="none" stroke="#1A73E8" stroke-width="2" stroke-dasharray="6 4" marker-end="url(#ab)"/>
+<rect x="207.8" y="226" width="64.4" height="18" rx="9" fill="#FFFFFF" stroke="#1A73E8" stroke-width="1"/>
+<text x="240" y="239" font-size="11" font-weight="bold" fill="#1A73E8" text-anchor="middle" >TCP 3306</text>
+<rect x="990" y="145" width="345" height="255" rx="4" fill="#FBF0FC" stroke="#C925D1" stroke-width="1.5"/>
+<text x="1000" y="163" font-size="12" font-weight="bold" fill="#9B1BA3" text-anchor="start" >Amazon Aurora MySQL Cluster</text>
+<path d="M930,250 L1092,250" fill="none" stroke="#1A73E8" stroke-width="2" stroke-dasharray="6 4" marker-end="url(#ab)"/>
+<rect x="970.2" y="212" width="89.6" height="18" rx="9" fill="#FFFFFF" stroke="#1A73E8" stroke-width="1"/>
+<text x="1015" y="225" font-size="11" font-weight="bold" fill="#1A73E8" text-anchor="middle" >Load + apply</text>
+<rect x="1096.0" y="226.0" width="48" height="48" rx="6" fill="#C925D1"/>
+<text x="1120" y="254.5" font-size="13" font-weight="bold" fill="#FFFFFF" text-anchor="middle" >RDS</text>
+<text x="1120" y="290.0" font-size="12" font-weight="normal" fill="#232F3E" text-anchor="middle" >Aurora Writer</text>
+<text x="1120" y="304.0" font-size="11" font-weight="normal" fill="#545B64" text-anchor="middle" >HR database (target)</text>
+<rect x="1226.0" y="226.0" width="48" height="48" rx="6" fill="#C925D1"/>
+<text x="1250" y="254.5" font-size="13" font-weight="bold" fill="#FFFFFF" text-anchor="middle" >RDS</text>
+<text x="1250" y="290.0" font-size="12" font-weight="normal" fill="#232F3E" text-anchor="middle" >Aurora Reader</text>
+<text x="1250" y="304.0" font-size="11" font-weight="normal" fill="#545B64" text-anchor="middle" >Multi-AZ replica</text>
+<path d="M1146,250 L1224,250" stroke="#C925D1" stroke-width="2" stroke-dasharray="3 3" fill="none"/>
+<text x="1162" y="360" font-size="11" font-weight="normal" fill="#545B64" text-anchor="middle" >Encrypted at rest (KMS) · Automated backups</text>
+<rect x="425.0" y="430.0" width="30" height="30" rx="6" fill="#E7157B"/>
+<text x="440" y="449.5" font-size="11" font-weight="bold" fill="#FFFFFF" text-anchor="middle" >CW</text>
+<text x="464" y="449" font-size="11" font-weight="normal" fill="#232F3E" text-anchor="start" >CloudWatch — logs, alarms</text>
+<rect x="660.0" y="430.0" width="30" height="30" rx="6" fill="#DD344C"/>
+<text x="675" y="449.5" font-size="11" font-weight="bold" fill="#FFFFFF" text-anchor="middle" >IAM</text>
+<text x="699" y="449" font-size="11" font-weight="normal" fill="#232F3E" text-anchor="start" >IAM — DMS service roles</text>
+<rect x="895.0" y="430.0" width="30" height="30" rx="6" fill="#DD344C"/>
+<text x="910" y="449.5" font-size="11" font-weight="bold" fill="#FFFFFF" text-anchor="middle" >KMS</text>
+<text x="934" y="449" font-size="11" font-weight="normal" fill="#232F3E" text-anchor="start" >KMS — encryption keys</text>
+<rect x="1130.0" y="430.0" width="30" height="30" rx="6" fill="#DD344C"/>
+<text x="1145" y="449.5" font-size="11" font-weight="bold" fill="#FFFFFF" text-anchor="middle" >SM</text>
+<text x="1169" y="449" font-size="11" font-weight="normal" fill="#232F3E" text-anchor="start" >Secrets Manager — credentials</text>
+<rect x="30" y="500" width="650" height="118" rx="6" fill="#FDF3F1" stroke="#D13212" stroke-width="1.5"/>
+<circle cx="52" cy="522" r="11" fill="#D13212" stroke="#FFFFFF" stroke-width="2"/>
+<text x="52" y="526.5" font-size="13" font-weight="bold" fill="#FFFFFF" text-anchor="middle" >1</text>
+<text x="72" y="527" font-size="13" font-weight="bold" fill="#D13212" text-anchor="start" >Source endpoint test failed — DMS-00001</text>
+<text x="50" y="552" font-size="12" font-weight="normal" fill="#232F3E" text-anchor="start" >Symptom: MySQL server host name could not be resolved (ODBC connection error).</text>
+<text x="50" y="571" font-size="12" font-weight="normal" fill="#232F3E" text-anchor="start" >Cause: DNS / hostname resolution from the replication instance to the source.</text>
+<text x="50" y="590" font-size="12" font-weight="normal" fill="#232F3E" text-anchor="start" >Fix: verify DNS, routing, security groups, and port 3306 before creating tasks.</text>
+<rect x="720" y="500" width="650" height="118" rx="6" fill="#FDF3F1" stroke="#D13212" stroke-width="1.5"/>
+<circle cx="742" cy="522" r="11" fill="#D13212" stroke="#FFFFFF" stroke-width="2"/>
+<text x="742" y="526.5" font-size="13" font-weight="bold" fill="#FFFFFF" text-anchor="middle" >2</text>
+<text x="762" y="527" font-size="13" font-weight="bold" fill="#D13212" text-anchor="start" >Task stopped — FATAL_ERROR</text>
+<text x="740" y="552" font-size="12" font-weight="normal" fill="#232F3E" text-anchor="start" >Symptom: "No tables were found at task initialization."</text>
+<text x="740" y="571" font-size="12" font-weight="normal" fill="#232F3E" text-anchor="start" >Cause: table-mapping rules, schema selection, permissions, or connectivity.</text>
+<text x="740" y="590" font-size="12" font-weight="normal" fill="#232F3E" text-anchor="start" >Fix: confirm schema &amp; grants, correct mappings, re-run premigration assessment.</text>
+<polygon points="30,650 192,650 206,672.0 192,694 30,694" fill="#E6F2F8" stroke="#147EBA" stroke-width="1"/>
+<text x="113.0" y="677" font-size="12" font-weight="bold" fill="#0B5394" text-anchor="middle" >1. Assess</text>
+<polygon points="196,650 358,650 372,672.0 358,694 196,694 210,672.0" fill="#E6F2F8" stroke="#147EBA" stroke-width="1"/>
+<text x="285.0" y="677" font-size="12" font-weight="bold" fill="#0B5394" text-anchor="middle" >2. Prepare Source</text>
+<polygon points="362,650 524,650 538,672.0 524,694 362,694 376,672.0" fill="#E6F2F8" stroke="#147EBA" stroke-width="1"/>
+<text x="451.0" y="677" font-size="12" font-weight="bold" fill="#0B5394" text-anchor="middle" >3. Provision Aurora</text>
+<polygon points="528,650 690,650 704,672.0 690,694 528,694 542,672.0" fill="#E6F7F4" stroke="#147EBA" stroke-width="1"/>
+<text x="617.0" y="677" font-size="12" font-weight="bold" fill="#0B5394" text-anchor="middle" >4. Endpoints &amp; Test</text>
+<polygon points="694,650 856,650 870,672.0 856,694 694,694 708,672.0" fill="#E6F7F4" stroke="#147EBA" stroke-width="1"/>
+<text x="783.0" y="677" font-size="12" font-weight="bold" fill="#0B5394" text-anchor="middle" >5. Full Load</text>
+<polygon points="860,650 1022,650 1036,672.0 1022,694 860,694 874,672.0" fill="#E6F7F4" stroke="#147EBA" stroke-width="1"/>
+<text x="949.0" y="677" font-size="12" font-weight="bold" fill="#0B5394" text-anchor="middle" >6. CDC</text>
+<polygon points="1026,650 1188,650 1202,672.0 1188,694 1026,694 1040,672.0" fill="#FBF0FC" stroke="#147EBA" stroke-width="1"/>
+<text x="1115.0" y="677" font-size="12" font-weight="bold" fill="#0B5394" text-anchor="middle" >7. Validate</text>
+<polygon points="1192,650 1354,650 1368,672.0 1354,694 1192,694 1206,672.0" fill="#FBF0FC" stroke="#147EBA" stroke-width="1"/>
+<text x="1281.0" y="677" font-size="12" font-weight="bold" fill="#0B5394" text-anchor="middle" >8. Cutover</text>
+<text x="30" y="638" font-size="12" font-weight="bold" fill="#232F3E" text-anchor="start" >Migration stages</text>
+<text x="1370" y="716" font-size="10" font-weight="normal" fill="#879596" text-anchor="end" >Endpoint and task names are from the course project. Hostnames, credentials, and account details are intentionally omitted.</text>
+</svg>
