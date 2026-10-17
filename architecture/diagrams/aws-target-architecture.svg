@@ -1,0 +1,147 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1400" height="860" viewBox="0 0 1400 860" font-family="Arial, Helvetica, sans-serif">
+<defs>
+<marker id="ab" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#1A73E8"/></marker>
+<marker id="ag" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#01A88D"/></marker>
+<marker id="ak" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#545B64"/></marker>
+<marker id="ap" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#C925D1"/></marker>
+</defs>
+<rect width="1400" height="860" fill="#FFFFFF"/>
+<text x="700.0" y="38" font-size="22" font-weight="bold" fill="#232F3E" text-anchor="middle" >BallotOnline AWS Cloud Migration — Target Architecture</text>
+<text x="700.0" y="62" font-size="13" font-weight="normal" fill="#545B64" text-anchor="middle" >MySQL → AWS DMS → Amazon Aurora MySQL  ·  Hyper-V → AWS Application Migration Service → Amazon EC2</text>
+<rect x="30" y="140" width="270" height="550" rx="4" fill="#F7F8F8" stroke="#545B64" stroke-width="1.5" stroke-dasharray="6 4"/>
+<text x="40" y="158" font-size="12" font-weight="bold" fill="#232F3E" text-anchor="start" >BallotOnline On-Premises Data Center</text>
+<circle cx="165" cy="268" r="11" fill="#545B64"/><path d="M143,300 a22,18 0 0 1 44,0 z" fill="#545B64"/>
+<text x="165" y="322" font-size="12" font-weight="normal" fill="#232F3E" text-anchor="middle" >BallotOnline Staff</text>
+<rect x="141.0" y="425.0" width="48" height="48" rx="6" fill="#5A6B7B"/>
+<text x="165" y="453.5" font-size="13" font-weight="bold" fill="#FFFFFF" text-anchor="middle" >MySQL</text>
+<text x="165" y="489.0" font-size="12" font-weight="normal" fill="#232F3E" text-anchor="middle" >MySQL HR Database</text>
+<rect x="50" y="515" width="230" height="160" rx="4" fill="#FFFFFF" stroke="#545B64" stroke-width="1.5"/>
+<text x="60" y="533" font-size="12" font-weight="bold" fill="#232F3E" text-anchor="start" >Microsoft Hyper-V Host</text>
+<rect x="73.0" y="562.0" width="44" height="44" rx="6" fill="#5A6B7B"/>
+<text x="95" y="588.5" font-size="11" font-weight="bold" fill="#FFFFFF" text-anchor="middle" >WEB</text>
+<text x="95" y="622.0" font-size="12" font-weight="normal" fill="#232F3E" text-anchor="middle" >Intranet VM</text>
+<rect x="143.0" y="562.0" width="44" height="44" rx="6" fill="#5A6B7B"/>
+<text x="165" y="588.5" font-size="11" font-weight="bold" fill="#FFFFFF" text-anchor="middle" >FTP</text>
+<text x="165" y="622.0" font-size="12" font-weight="normal" fill="#232F3E" text-anchor="middle" >FTP VM</text>
+<rect x="213.0" y="562.0" width="44" height="44" rx="6" fill="#5A6B7B"/>
+<text x="235" y="588.5" font-size="11" font-weight="bold" fill="#FFFFFF" text-anchor="middle" >NTP</text>
+<text x="235" y="622.0" font-size="12" font-weight="normal" fill="#232F3E" text-anchor="middle" >NTP VM</text>
+<rect x="314" y="140" width="72" height="550" rx="4" fill="#F4EFFF" stroke="#8C4FFF" stroke-width="1.5" stroke-dasharray="4 3"/>
+<text x="346" y="376" font-size="13" font-weight="bold" fill="#8C4FFF" text-anchor="middle" transform="rotate(-90 346 376)">Site-to-Site VPN</text>
+<text x="364" y="376" font-size="11" font-weight="normal" fill="#8C4FFF" text-anchor="middle" transform="rotate(-90 364 376)">IPsec encrypted</text>
+<rect x="400" y="100" width="970" height="730" rx="4" fill="none" stroke="#00A4A6" stroke-width="1.5"/>
+<text x="410" y="118" font-size="12" font-weight="bold" fill="#00A4A6" text-anchor="start" >AWS Region (us-east-1)</text>
+<rect x="420" y="130" width="930" height="570" rx="4" fill="none" stroke="#8C4FFF" stroke-width="1.5"/>
+<text x="430" y="148" font-size="12" font-weight="bold" fill="#8C4FFF" text-anchor="start" >VPC  10.0.0.0/16</text>
+<rect x="868.0" y="113.0" width="34" height="34" rx="6" fill="#8C4FFF"/>
+<text x="885" y="134.5" font-size="11" font-weight="bold" fill="#FFFFFF" text-anchor="middle" >IGW</text>
+<text x="915" y="126" font-size="11" font-weight="normal" fill="#545B64" text-anchor="start" >Internet Gateway</text>
+<rect x="440" y="160" width="440" height="525" rx="4" fill="none" stroke="#147EBA" stroke-width="1.5" stroke-dasharray="8 4"/>
+<text x="450" y="178" font-size="12" font-weight="bold" fill="#147EBA" text-anchor="start" >Availability Zone A</text>
+<rect x="900" y="160" width="430" height="525" rx="4" fill="none" stroke="#147EBA" stroke-width="1.5" stroke-dasharray="8 4"/>
+<text x="910" y="178" font-size="12" font-weight="bold" fill="#147EBA" text-anchor="start" >Availability Zone B</text>
+<rect x="455" y="185" width="410" height="70" rx="4" fill="#F2F8E8" stroke="#7AA116" stroke-width="1.5"/>
+<text x="465" y="203" font-size="12" font-weight="bold" fill="#3F6F00" text-anchor="start" >Public Subnet 10.0.1.0/24</text>
+<rect x="455" y="265" width="410" height="125" rx="4" fill="#E6F2F8" stroke="#147EBA" stroke-width="1.5"/>
+<text x="465" y="283" font-size="12" font-weight="bold" fill="#0B5394" text-anchor="start" >Private App Subnet 10.0.11.0/24</text>
+<rect x="455" y="400" width="410" height="115" rx="4" fill="#E6F2F8" stroke="#147EBA" stroke-width="1.5"/>
+<text x="465" y="418" font-size="12" font-weight="bold" fill="#0B5394" text-anchor="start" >Private DB Subnet 10.0.21.0/24</text>
+<rect x="455" y="525" width="410" height="145" rx="4" fill="#E6F7F4" stroke="#01A88D" stroke-width="1.5"/>
+<text x="465" y="543" font-size="12" font-weight="bold" fill="#017A67" text-anchor="start" >Migration Staging Subnet 10.0.31.0/24</text>
+<rect x="915" y="185" width="400" height="70" rx="4" fill="#F2F8E8" stroke="#7AA116" stroke-width="1.5"/>
+<text x="925" y="203" font-size="12" font-weight="bold" fill="#3F6F00" text-anchor="start" >Public Subnet 10.0.2.0/24</text>
+<rect x="915" y="265" width="400" height="125" rx="4" fill="#E6F2F8" stroke="#147EBA" stroke-width="1.5"/>
+<text x="925" y="283" font-size="12" font-weight="bold" fill="#0B5394" text-anchor="start" >Private App Subnet 10.0.12.0/24</text>
+<rect x="915" y="400" width="400" height="115" rx="4" fill="#E6F2F8" stroke="#147EBA" stroke-width="1.5"/>
+<text x="925" y="418" font-size="12" font-weight="bold" fill="#0B5394" text-anchor="start" >Private DB Subnet 10.0.22.0/24</text>
+<rect x="773.0" y="209.0" width="34" height="34" rx="6" fill="#8C4FFF"/>
+<text x="790" y="230.5" font-size="11" font-weight="bold" fill="#FFFFFF" text-anchor="middle" >NAT</text>
+<text x="760" y="231" font-size="11" font-weight="normal" fill="#232F3E" text-anchor="end" >NAT Gateway</text>
+<rect x="506.0" y="296.0" width="48" height="48" rx="6" fill="#ED7100"/>
+<text x="530" y="324.5" font-size="13" font-weight="bold" fill="#FFFFFF" text-anchor="middle" >EC2</text>
+<text x="530" y="360.0" font-size="12" font-weight="normal" fill="#232F3E" text-anchor="middle" >Intranet</text>
+<rect x="626.0" y="296.0" width="48" height="48" rx="6" fill="#ED7100"/>
+<text x="650" y="324.5" font-size="13" font-weight="bold" fill="#FFFFFF" text-anchor="middle" >EC2</text>
+<text x="650" y="360.0" font-size="12" font-weight="normal" fill="#232F3E" text-anchor="middle" >FTP / SFTP</text>
+<rect x="746.0" y="296.0" width="48" height="48" rx="6" fill="#ED7100"/>
+<text x="770" y="324.5" font-size="13" font-weight="bold" fill="#FFFFFF" text-anchor="middle" >EC2</text>
+<text x="770" y="360.0" font-size="12" font-weight="normal" fill="#232F3E" text-anchor="middle" >NTP</text>
+<rect x="506.0" y="432.0" width="48" height="48" rx="6" fill="#01A88D"/>
+<text x="530" y="460.5" font-size="13" font-weight="bold" fill="#FFFFFF" text-anchor="middle" >DMS</text>
+<text x="530" y="496.0" font-size="12" font-weight="normal" fill="#232F3E" text-anchor="middle" >DMS Replication</text>
+<text x="530" y="510.0" font-size="11" font-weight="normal" fill="#545B64" text-anchor="middle" >Instance</text>
+<rect x="746.0" y="432.0" width="48" height="48" rx="6" fill="#C925D1"/>
+<text x="770" y="460.5" font-size="13" font-weight="bold" fill="#FFFFFF" text-anchor="middle" >RDS</text>
+<text x="770" y="496.0" font-size="12" font-weight="normal" fill="#232F3E" text-anchor="middle" >Aurora MySQL</text>
+<text x="770" y="510.0" font-size="11" font-weight="normal" fill="#545B64" text-anchor="middle" >Writer</text>
+<rect x="816.0" y="574.0" width="48" height="48" rx="6" fill="#01A88D"/>
+<text x="840" y="602.5" font-size="13" font-weight="bold" fill="#FFFFFF" text-anchor="middle" >MGN</text>
+<text x="840" y="638.0" font-size="12" font-weight="normal" fill="#232F3E" text-anchor="middle" >MGN Replication</text>
+<text x="840" y="652.0" font-size="11" font-weight="normal" fill="#545B64" text-anchor="middle" >Servers</text>
+<rect x="1233.0" y="209.0" width="34" height="34" rx="6" fill="#8C4FFF"/>
+<text x="1250" y="230.5" font-size="11" font-weight="bold" fill="#FFFFFF" text-anchor="middle" >NAT</text>
+<text x="1220" y="231" font-size="11" font-weight="normal" fill="#232F3E" text-anchor="end" >NAT Gateway</text>
+<rect x="1030" y="295" width="170" height="70" rx="6" fill="none" stroke="#ED7100" stroke-width="1.5" stroke-dasharray="5 4"/>
+<text x="1115" y="326" font-size="11" font-weight="normal" fill="#545B64" text-anchor="middle" >Reserved for standby /</text>
+<text x="1115" y="342" font-size="11" font-weight="normal" fill="#545B64" text-anchor="middle" >Auto Scaling capacity</text>
+<rect x="1091.0" y="432.0" width="48" height="48" rx="6" fill="#C925D1"/>
+<text x="1115" y="460.5" font-size="13" font-weight="bold" fill="#FFFFFF" text-anchor="middle" >RDS</text>
+<text x="1115" y="496.0" font-size="12" font-weight="normal" fill="#232F3E" text-anchor="middle" >Aurora MySQL</text>
+<text x="1115" y="510.0" font-size="11" font-weight="normal" fill="#545B64" text-anchor="middle" >Reader (replica)</text>
+<path d="M190,290 L506,320" fill="none" stroke="#545B64" stroke-width="2" marker-end="url(#ak)"/>
+<rect x="214.65" y="272" width="70.69999999999999" height="18" rx="9" fill="#FFFFFF" stroke="#545B64" stroke-width="1"/>
+<text x="250" y="285" font-size="11" font-weight="bold" fill="#545B64" text-anchor="middle" >HTTPS 443</text>
+<path d="M189,449 L504,449" fill="none" stroke="#1A73E8" stroke-width="2" stroke-dasharray="6 4" marker-end="url(#ab)"/>
+<rect x="203.9" y="426" width="102.2" height="18" rx="9" fill="#FFFFFF" stroke="#1A73E8" stroke-width="1"/>
+<text x="255" y="439" font-size="11" font-weight="bold" fill="#1A73E8" text-anchor="middle" >TCP 3306 · TLS</text>
+<path d="M556,449 L744,449" fill="none" stroke="#1A73E8" stroke-width="2" stroke-dasharray="6 4" marker-end="url(#ab)"/>
+<rect x="595.75" y="426" width="108.5" height="18" rx="9" fill="#FFFFFF" stroke="#1A73E8" stroke-width="1"/>
+<text x="650" y="439" font-size="11" font-weight="bold" fill="#1A73E8" text-anchor="middle" >Full Load + CDC</text>
+<path d="M796,449 L1089,449" fill="none" stroke="#C925D1" stroke-width="2" stroke-dasharray="3 3" marker-end="url(#ap)"/>
+<rect x="905.0" y="426" width="140.0" height="18" rx="9" fill="#FFFFFF" stroke="#C925D1" stroke-width="1"/>
+<text x="975" y="439" font-size="11" font-weight="bold" fill="#C925D1" text-anchor="middle" >Multi-AZ replication</text>
+<path d="M280,598 L814,598" fill="none" stroke="#01A88D" stroke-width="2" stroke-dasharray="6 4" marker-end="url(#ag)"/>
+<rect x="464.8" y="575" width="190.4" height="18" rx="9" fill="#FFFFFF" stroke="#01A88D" stroke-width="1"/>
+<text x="560" y="588" font-size="11" font-weight="bold" fill="#01A88D" text-anchor="middle" >TCP 1500 · block replication</text>
+<path d="M840,572 L840,390" fill="none" stroke="#01A88D" stroke-width="2" stroke-dasharray="6 4" marker-end="url(#ag)"/>
+<path d="M530,382 L530,388 L840,388 M650,382 L650,388 M770,382 L770,388" fill="none" stroke="#01A88D" stroke-width="2"/>
+<rect x="672.25" y="550" width="171.5" height="18" rx="9" fill="#FFFFFF" stroke="#01A88D" stroke-width="1"/>
+<text x="758" y="563" font-size="11" font-weight="bold" fill="#01A88D" text-anchor="middle" >Test &amp; cutover launch</text>
+<rect x="420" y="712" width="930" height="90" rx="4" fill="#FAFAFA" stroke="#545B64" stroke-width="1.5"/>
+<text x="430" y="730" font-size="12" font-weight="bold" fill="#232F3E" text-anchor="start" >Regional Security, Automation &amp; Operations Services</text>
+<rect x="473.0" y="738.0" width="34" height="34" rx="6" fill="#DD344C"/>
+<text x="490" y="759.5" font-size="11" font-weight="bold" fill="#FFFFFF" text-anchor="middle" >IAM</text>
+<text x="490" y="789" font-size="11" font-weight="normal" fill="#232F3E" text-anchor="middle" >IAM</text>
+<rect x="585.0" y="738.0" width="34" height="34" rx="6" fill="#DD344C"/>
+<text x="602" y="759.5" font-size="11" font-weight="bold" fill="#FFFFFF" text-anchor="middle" >KMS</text>
+<text x="602" y="789" font-size="11" font-weight="normal" fill="#232F3E" text-anchor="middle" >KMS</text>
+<rect x="697.0" y="738.0" width="34" height="34" rx="6" fill="#E7157B"/>
+<text x="714" y="759.5" font-size="11" font-weight="bold" fill="#FFFFFF" text-anchor="middle" >CFN</text>
+<text x="714" y="789" font-size="11" font-weight="normal" fill="#232F3E" text-anchor="middle" >CloudFormation</text>
+<rect x="809.0" y="738.0" width="34" height="34" rx="6" fill="#E7157B"/>
+<text x="826" y="759.5" font-size="11" font-weight="bold" fill="#FFFFFF" text-anchor="middle" >CW</text>
+<text x="826" y="789" font-size="11" font-weight="normal" fill="#232F3E" text-anchor="middle" >CloudWatch</text>
+<rect x="921.0" y="738.0" width="34" height="34" rx="6" fill="#E7157B"/>
+<text x="938" y="759.5" font-size="11" font-weight="bold" fill="#FFFFFF" text-anchor="middle" >CT</text>
+<text x="938" y="789" font-size="11" font-weight="normal" fill="#232F3E" text-anchor="middle" >CloudTrail</text>
+<rect x="1033.0" y="738.0" width="34" height="34" rx="6" fill="#E7157B"/>
+<text x="1050" y="759.5" font-size="11" font-weight="bold" fill="#FFFFFF" text-anchor="middle" >SSM</text>
+<text x="1050" y="789" font-size="11" font-weight="normal" fill="#232F3E" text-anchor="middle" >Systems Manager</text>
+<rect x="1145.0" y="738.0" width="34" height="34" rx="6" fill="#E7157B"/>
+<text x="1162" y="759.5" font-size="11" font-weight="bold" fill="#FFFFFF" text-anchor="middle" >TA</text>
+<text x="1162" y="789" font-size="11" font-weight="normal" fill="#232F3E" text-anchor="middle" >Trusted Advisor</text>
+<rect x="1257.0" y="738.0" width="34" height="34" rx="6" fill="#7AA116"/>
+<text x="1274" y="759.5" font-size="11" font-weight="bold" fill="#FFFFFF" text-anchor="middle" >BKP</text>
+<text x="1274" y="789" font-size="11" font-weight="normal" fill="#232F3E" text-anchor="middle" >AWS Backup</text>
+<rect x="30" y="712" width="350" height="128" rx="4" fill="#FFFFFF" stroke="#D5DBDB" stroke-width="1.5"/>
+<text x="40" y="730" font-size="12" font-weight="bold" fill="#232F3E" text-anchor="start" >Legend</text>
+<path d="M45,752 L100,752" fill="none" stroke="#1A73E8" stroke-width="2" stroke-dasharray="6 4" marker-end="url(#ab)"/>
+<text x="112" y="756" font-size="12" font-weight="normal" fill="#232F3E" text-anchor="start" >Database migration (AWS DMS)</text>
+<path d="M45,775 L100,775" fill="none" stroke="#01A88D" stroke-width="2" stroke-dasharray="6 4" marker-end="url(#ag)"/>
+<text x="112" y="779" font-size="12" font-weight="normal" fill="#232F3E" text-anchor="start" >Server migration (AWS MGN)</text>
+<path d="M45,798 L100,798" fill="none" stroke="#C925D1" stroke-width="2" stroke-dasharray="3 3" marker-end="url(#ap)"/>
+<text x="112" y="802" font-size="12" font-weight="normal" fill="#232F3E" text-anchor="start" >Aurora Multi-AZ replication</text>
+<path d="M45,821 L100,821" fill="none" stroke="#545B64" stroke-width="2" marker-end="url(#ak)"/>
+<text x="112" y="825" font-size="12" font-weight="normal" fill="#232F3E" text-anchor="start" >User access after cutover</text>
+<text x="1370" y="844" font-size="10" font-weight="normal" fill="#879596" text-anchor="end" >Addresses and Region are illustrative. Colors follow AWS Architecture Icon categories.</text>
+</svg>

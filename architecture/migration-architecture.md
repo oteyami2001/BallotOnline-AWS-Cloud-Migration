@@ -1,5 +1,7 @@
 # 🏗️ BallotOnline AWS Cloud Migration Architecture
 
+![BallotOnline AWS target architecture](diagrams/aws-target-architecture.svg)
+
 ## Overview
 
 This document describes the target cloud architecture developed for the BallotOnline migration project. The migration moves selected workloads from the existing on-premises environment to Amazon Web Services (AWS).
