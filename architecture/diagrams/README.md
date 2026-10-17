@@ -6,6 +6,7 @@
 | [`aws-dms-migration-flow.svg`](aws-dms-migration-flow.svg) | HR database migration: MySQL → AWS DMS (source endpoint `ccs640mysql`, task `ccs640migration`, target endpoint `ccs640target`) → Aurora MySQL, with the two issues hit during the project and the migration stages. |
 | [`aws-mgn-server-migration-flow.svg`](aws-mgn-server-migration-flow.svg) | Server migration: Hyper-V VMs with the AWS Replication Agent → staging subnet (replication servers, EBS, snapshots) → test and cutover EC2 instances, plus the MGN lifecycle. |
 | [`monitoring-operations.svg`](monitoring-operations.svg) | Observability: EC2, Aurora, DMS, VPC/VPN, CloudTrail/GuardDuty → CloudWatch and EventBridge → SNS → operations, with Systems Manager and Trusted Advisor as complementary services. |
+| [`cutover-rollback-flow.svg`](cutover-rollback-flow.svg) | Cutover timeline, on-premises → DMS/MGN synchronization → go/no-go → AWS production, rollback path, and post-cutover validation. |
 
 ![BallotOnline AWS target architecture](aws-target-architecture.svg)
 
@@ -14,5 +15,7 @@
 ![BallotOnline AWS MGN server migration flow](aws-mgn-server-migration-flow.svg)
 
 ![BallotOnline observability and operations](monitoring-operations.svg)
+
+![BallotOnline cutover and rollback flow](cutover-rollback-flow.svg)
 
 The diagram is plain SVG, so it renders on GitHub and can be edited in any text editor or imported into draw.io.

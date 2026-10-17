@@ -307,6 +307,10 @@ Trusted Advisor is evaluated for recommendations related to:
 
 ## 🔄 Cutover Strategy
 
+![BallotOnline cutover and rollback flow](architecture/diagrams/cutover-rollback-flow.svg)
+
+The full procedure is in [`cutover-rollback/`](cutover-rollback/): a [T-7 days → T+24 hours runbook](cutover-rollback/cutover-runbook.md), a [go/no-go checklist](cutover-rollback/go-no-go-checklist.md), and [post-cutover validation](cutover-rollback/post-cutover-validation.md). These are procedures; no production cutover was performed.
+
 Before production cutover, the migrated environment is validated through:
 
 1. Database validation
@@ -334,6 +338,8 @@ A rollback plan is maintained in case critical problems occur during migration. 
 - Recovery procedures
 
 > The legacy environment should remain available until the AWS environment has been fully validated.
+
+Once users write to Aurora, rollback means bringing that data back to MySQL first. See the [rollback plan](cutover-rollback/rollback-plan.md#data-consistency-after-cutover). Recovery after go-live is covered in [disaster recovery](cutover-rollback/disaster-recovery.md) and [business continuity](cutover-rollback/business-continuity.md).
 
 ---
 
@@ -403,7 +409,12 @@ BallotOnline-AWS-Cloud-Migration/
 │   └── operational-checklist.md
 │
 ├── cutover-rollback/
-│   └── strategy.md
+│   ├── cutover-runbook.md       # T-7 days → T+24 hours
+│   ├── go-no-go-checklist.md
+│   ├── rollback-plan.md
+│   ├── post-cutover-validation.md
+│   ├── disaster-recovery.md
+│   └── business-continuity.md
 │
 ├── screenshots/
 │

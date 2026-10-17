@@ -199,6 +199,10 @@ During migration, the on-premises environment remains the system of record. AWS 
 | Cutover | AWS | Writes frozen, final CDC applied, DNS switched |
 | Rollback window | AWS (on-premises on standby) | Source environment kept intact for fallback |
 
+![BallotOnline cutover and rollback flow](diagrams/cutover-rollback-flow.svg)
+
+The cutover procedure, go/no-go criteria, rollback plan, and disaster recovery design are in [`cutover-rollback/`](../cutover-rollback/).
+
 ---
 
 ## 5. After Migration — Target AWS Architecture
@@ -423,4 +427,4 @@ This architecture establishes the foundation for BallotOnline's transition from 
 - [Infrastructure as Code](../infrastructure-as-code/cloudformation/)
 - [Security controls](../security/security-controls.md)
 - [Monitoring](../monitoring/)
-- [Cutover and rollback strategy](../cutover-rollback/strategy.md)
+- [Cutover, rollback, DR and business continuity](../cutover-rollback/)
