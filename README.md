@@ -251,6 +251,8 @@ AWS CloudFormation is used to automate infrastructure deployment. Four stacks (n
 
 ## 📊 Monitoring and Management
 
+Monitoring is deployed by the [`06-monitoring`](infrastructure-as-code/cloudformation/06-monitoring.yaml) and [`07-operations`](infrastructure-as-code/cloudformation/07-operations.yaml) stacks. See [`monitoring/`](monitoring/) for every alarm, event rule, and Systems Manager association.
+
 ### Amazon CloudWatch
 
 CloudWatch provides:

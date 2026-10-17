@@ -1,6 +1,6 @@
 # ⚙️ Infrastructure as Code — AWS CloudFormation
 
-The BallotOnline target environment is defined as five CloudFormation stacks. Together they build the network, security, database, and migration resources shown in the [target architecture](../../architecture/migration-architecture.md), so the environment can be recreated, reviewed, and version-controlled instead of being built by hand in the console.
+The BallotOnline target environment is defined as seven CloudFormation stacks. Together they build the network, security, database, and migration resources shown in the [target architecture](../../architecture/migration-architecture.md), so the environment can be recreated, reviewed, and version-controlled instead of being built by hand in the console.
 
 ![BallotOnline AWS target architecture](../../architecture/diagrams/aws-target-architecture.svg)
 
@@ -15,6 +15,8 @@ The BallotOnline target environment is defined as five CloudFormation stacks. To
 | 3 | [`03-aurora.yaml`](03-aurora.yaml) | `ballotonline-aurora` | Encrypted Aurora MySQL cluster, writer + Multi-AZ reader, TLS required, password managed by Secrets Manager |
 | 4 | [`04-dms.yaml`](04-dms.yaml) | `ballotonline-dms` | Private DMS replication instance, endpoints `ccs640mysql` and `ccs640target`, task `ccs640migration` |
 | 5 | [`05-governance.yaml`](05-governance.yaml) | `ballotonline-governance` | Multi-Region CloudTrail (encrypted, validated, TLS-only bucket, CloudWatch Logs delivery), GuardDuty, IAM Access Analyzer, optional Security Hub |
+| 6 | [`06-monitoring.yaml`](06-monitoring.yaml) | `ballotonline-monitoring` | Encrypted SNS alert topic, Aurora/DMS/VPN/EC2 alarms, CIS-style security alarms on CloudTrail, EventBridge rules, operations dashboard |
+| 7 | [`07-operations.yaml`](07-operations.yaml) | `ballotonline-operations` | Systems Manager patch scan and install, inventory, CloudWatch agent install and configuration |
 
 Stacks share values through **CloudFormation exports** named `<EnvironmentName>-<Value>`, so they must be deployed in order:
 
@@ -23,6 +25,8 @@ Stacks share values through **CloudFormation exports** named `<EnvironmentName>-
    VPC, subnets      SGs, KMS, IAM      cluster, secret     endpoints, task
 
 05-governance   (independent: audit logging and threat detection)
+
+03-aurora + 05-governance ──▶ 06-monitoring        07-operations (independent)
 ```
 
 ---
@@ -132,7 +136,7 @@ Then validate with [`validation-queries.sql`](../../database-migration/aurora/va
 NAT gateways, Aurora, and the DMS instance bill by the hour. Remove everything when finished:
 
 ```bash
-./deploy.sh delete all     # dms → aurora → governance → security → network
+./deploy.sh delete all     # operations → monitoring → dms → aurora → governance → security → network
 ```
 
 The script turns off Aurora deletion protection after asking for confirmation.

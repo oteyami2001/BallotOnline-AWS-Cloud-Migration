@@ -145,8 +145,9 @@ Each server gets an EC2 launch template before testing:
 | IAM instance profile | `AmazonSSMManagedInstanceCore` | `AmazonSSMManagedInstanceCore` | `AmazonSSMManagedInstanceCore` |
 | EBS | gp3, encrypted (KMS) | gp3, encrypted (KMS) | gp3, encrypted (KMS) |
 | Licensing | Bring your own / license-included as applicable | — | — |
+| Tags | `Project=BallotOnline`, `BallotOnlineOS=<Linux\|Windows>` | same | same |
 
-Attaching `AmazonSSMManagedInstanceCore` lets the migrated servers be managed through **Systems Manager** (Session Manager, Patch Manager, Inventory) without opening SSH or RDP.
+Attaching `AmazonSSMManagedInstanceCore` lets the migrated servers be managed through **Systems Manager** (Session Manager, Patch Manager, Inventory) without opening SSH or RDP. The tags let the [monitoring and patching associations](../../monitoring/systems-manager/) find each server.
 
 ---
 
