@@ -7,6 +7,8 @@
 ![MySQL](https://img.shields.io/badge/MySQL-Database-blue?style=for-the-badge&logo=mysql)
 ![Linux](https://img.shields.io/badge/Linux-Server-black?style=for-the-badge&logo=linux)
 
+[![Validate](https://github.com/oteyami2001/BallotOnline-AWS-Cloud-Migration/actions/workflows/validate.yml/badge.svg)](https://github.com/oteyami2001/BallotOnline-AWS-Cloud-Migration/actions/workflows/validate.yml)
+
 End-to-end AWS cloud migration project for BallotOnline, including MySQL-to-Aurora migration with AWS DMS, Hyper-V server migration, CloudFormation, security, monitoring, cutover, rollback, and postmigration optimization.
 
 ---
@@ -236,7 +238,7 @@ Security is incorporated throughout the migration. Key controls include:
 
 ## ⚙️ Infrastructure as Code
 
-AWS CloudFormation is used to automate infrastructure deployment. Infrastructure as Code helps provide:
+AWS CloudFormation is used to automate infrastructure deployment. Four stacks (network, security, Aurora, DMS) live in [`infrastructure-as-code/cloudformation/`](infrastructure-as-code/cloudformation/) and are linted on every pull request. Infrastructure as Code helps provide:
 
 - Repeatable deployments
 - Standardized configurations

@@ -1,0 +1,247 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Description: >-
+  BallotOnline migration - Security layer. Least-privilege security groups,
+  a customer-managed KMS key, the EC2 instance profile for Systems Manager,
+  and the service roles AWS DMS requires.
+
+Parameters:
+  EnvironmentName:
+    Type: String
+    Default: ballotonline
+    AllowedPattern: "^[a-z][a-z0-9-]{1,30}$"
+    Description: Must match the network stack.
+  CreateDmsServiceRoles:
+    Type: String
+    Default: "true"
+    AllowedValues: ["true", "false"]
+    Description: >-
+      Create dms-vpc-role and dms-cloudwatch-logs-role. These names are fixed
+      per account, so set false if they already exist.
+
+Conditions:
+  WithDmsRoles: !Equals [!Ref CreateDmsServiceRoles, "true"]
+
+Resources:
+  # ------------------------------------------------------------------
+  # Security groups (one per workload; only the ports each needs)
+  # ------------------------------------------------------------------
+  IntranetSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupName: !Sub "${EnvironmentName}-intranet"
+      GroupDescription: Intranet server - HTTPS from on-premises over VPN
+      VpcId: { "Fn::ImportValue": !Sub "${EnvironmentName}-VpcId" }
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: 443
+          ToPort: 443
+          CidrIp: { "Fn::ImportValue": !Sub "${EnvironmentName}-OnPremisesCidr" }
+          Description: HTTPS from BallotOnline office
+      Tags:
+        - { Key: Name, Value: !Sub "${EnvironmentName}-intranet" }
+
+  FtpSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupName: !Sub "${EnvironmentName}-ftp"
+      GroupDescription: File transfer server - SFTP from on-premises over VPN
+      VpcId: { "Fn::ImportValue": !Sub "${EnvironmentName}-VpcId" }
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: 22
+          ToPort: 22
+          CidrIp: { "Fn::ImportValue": !Sub "${EnvironmentName}-OnPremisesCidr" }
+          Description: SFTP from BallotOnline office
+      Tags:
+        - { Key: Name, Value: !Sub "${EnvironmentName}-ftp" }
+
+  NtpSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupName: !Sub "${EnvironmentName}-ntp"
+      GroupDescription: NTP server - UDP 123 from VPC and on-premises
+      VpcId: { "Fn::ImportValue": !Sub "${EnvironmentName}-VpcId" }
+      SecurityGroupIngress:
+        - IpProtocol: udp
+          FromPort: 123
+          ToPort: 123
+          CidrIp: { "Fn::ImportValue": !Sub "${EnvironmentName}-VpcCidr" }
+          Description: NTP from VPC
+        - IpProtocol: udp
+          FromPort: 123
+          ToPort: 123
+          CidrIp: { "Fn::ImportValue": !Sub "${EnvironmentName}-OnPremisesCidr" }
+          Description: NTP from BallotOnline office
+      Tags:
+        - { Key: Name, Value: !Sub "${EnvironmentName}-ntp" }
+
+  DmsSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupName: !Sub "${EnvironmentName}-dms"
+      GroupDescription: DMS replication instance - outbound only
+      VpcId: { "Fn::ImportValue": !Sub "${EnvironmentName}-VpcId" }
+      SecurityGroupEgress:
+        - IpProtocol: tcp
+          FromPort: 3306
+          ToPort: 3306
+          CidrIp: { "Fn::ImportValue": !Sub "${EnvironmentName}-OnPremisesCidr" }
+          Description: Source MySQL over VPN
+        - IpProtocol: tcp
+          FromPort: 3306
+          ToPort: 3306
+          CidrIp: { "Fn::ImportValue": !Sub "${EnvironmentName}-VpcCidr" }
+          Description: Target Aurora
+        - IpProtocol: tcp
+          FromPort: 443
+          ToPort: 443
+          CidrIp: 0.0.0.0/0
+          Description: AWS service endpoints (Secrets Manager, CloudWatch)
+        - IpProtocol: udp
+          FromPort: 53
+          ToPort: 53
+          CidrIp: { "Fn::ImportValue": !Sub "${EnvironmentName}-VpcCidr" }
+          Description: DNS (Amazon Route 53 Resolver)
+      Tags:
+        - { Key: Name, Value: !Sub "${EnvironmentName}-dms" }
+
+  AuroraSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupName: !Sub "${EnvironmentName}-aurora"
+      GroupDescription: Aurora MySQL - only from the intranet tier and DMS
+      VpcId: { "Fn::ImportValue": !Sub "${EnvironmentName}-VpcId" }
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: 3306
+          ToPort: 3306
+          SourceSecurityGroupId: !Ref IntranetSecurityGroup
+          Description: MySQL from intranet servers
+        - IpProtocol: tcp
+          FromPort: 3306
+          ToPort: 3306
+          SourceSecurityGroupId: !Ref DmsSecurityGroup
+          Description: MySQL from DMS replication instance
+      Tags:
+        - { Key: Name, Value: !Sub "${EnvironmentName}-aurora" }
+
+  MgnStagingSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupName: !Sub "${EnvironmentName}-mgn-staging"
+      GroupDescription: MGN replication servers - TCP 1500 from on-premises agents
+      VpcId: { "Fn::ImportValue": !Sub "${EnvironmentName}-VpcId" }
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: 1500
+          ToPort: 1500
+          CidrIp: { "Fn::ImportValue": !Sub "${EnvironmentName}-OnPremisesCidr" }
+          Description: Block replication from Hyper-V agents
+      Tags:
+        - { Key: Name, Value: !Sub "${EnvironmentName}-mgn-staging" }
+
+  # ------------------------------------------------------------------
+  # Customer-managed KMS key (Aurora, DMS, EBS)
+  # ------------------------------------------------------------------
+  DataKey:
+    Type: AWS::KMS::Key
+    DeletionPolicy: Retain
+    UpdateReplacePolicy: Retain
+    Properties:
+      Description: !Sub "${EnvironmentName} data encryption key"
+      EnableKeyRotation: true
+      KeyPolicy:
+        Version: "2012-10-17"
+        Statement:
+          - Sid: AccountAdministration
+            Effect: Allow
+            Principal: { AWS: !Sub "arn:${AWS::Partition}:iam::${AWS::AccountId}:root" }
+            Action: kms:*
+            Resource: "*"
+
+  DataKeyAlias:
+    Type: AWS::KMS::Alias
+    Properties:
+      AliasName: !Sub "alias/${EnvironmentName}-data"
+      TargetKeyId: !Ref DataKey
+
+  # ------------------------------------------------------------------
+  # EC2 instance profile: Systems Manager + CloudWatch agent
+  # ------------------------------------------------------------------
+  Ec2ManagedRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: !Sub "${EnvironmentName}-ec2-managed"
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Principal: { Service: ec2.amazonaws.com }
+            Action: sts:AssumeRole
+      ManagedPolicyArns:
+        - !Sub "arn:${AWS::Partition}:iam::aws:policy/AmazonSSMManagedInstanceCore"
+        - !Sub "arn:${AWS::Partition}:iam::aws:policy/CloudWatchAgentServerPolicy"
+
+  Ec2InstanceProfile:
+    Type: AWS::IAM::InstanceProfile
+    Properties:
+      InstanceProfileName: !Sub "${EnvironmentName}-ec2-managed"
+      Roles: [!Ref Ec2ManagedRole]
+
+  # ------------------------------------------------------------------
+  # AWS DMS service roles (fixed names required by DMS)
+  # ------------------------------------------------------------------
+  DmsVpcRole:
+    Type: AWS::IAM::Role
+    Condition: WithDmsRoles
+    Properties:
+      RoleName: dms-vpc-role
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Principal: { Service: dms.amazonaws.com }
+            Action: sts:AssumeRole
+      ManagedPolicyArns:
+        - !Sub "arn:${AWS::Partition}:iam::aws:policy/service-role/AmazonDMSVPCManagementRole"
+
+  DmsCloudWatchLogsRole:
+    Type: AWS::IAM::Role
+    Condition: WithDmsRoles
+    Properties:
+      RoleName: dms-cloudwatch-logs-role
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Principal: { Service: dms.amazonaws.com }
+            Action: sts:AssumeRole
+      ManagedPolicyArns:
+        - !Sub "arn:${AWS::Partition}:iam::aws:policy/service-role/AmazonDMSCloudWatchLogsRole"
+
+Outputs:
+  IntranetSecurityGroupId:
+    Value: !Ref IntranetSecurityGroup
+    Export: { Name: !Sub "${EnvironmentName}-IntranetSg" }
+  FtpSecurityGroupId:
+    Value: !Ref FtpSecurityGroup
+    Export: { Name: !Sub "${EnvironmentName}-FtpSg" }
+  NtpSecurityGroupId:
+    Value: !Ref NtpSecurityGroup
+    Export: { Name: !Sub "${EnvironmentName}-NtpSg" }
+  DmsSecurityGroupId:
+    Value: !Ref DmsSecurityGroup
+    Export: { Name: !Sub "${EnvironmentName}-DmsSg" }
+  AuroraSecurityGroupId:
+    Value: !Ref AuroraSecurityGroup
+    Export: { Name: !Sub "${EnvironmentName}-AuroraSg" }
+  MgnStagingSecurityGroupId:
+    Value: !Ref MgnStagingSecurityGroup
+    Export: { Name: !Sub "${EnvironmentName}-MgnStagingSg" }
+  DataKeyArn:
+    Value: !GetAtt DataKey.Arn
+    Export: { Name: !Sub "${EnvironmentName}-DataKeyArn" }
+  Ec2InstanceProfileName:
+    Value: !Ref Ec2InstanceProfile
+    Description: Use in AWS MGN launch templates.
+    Export: { Name: !Sub "${EnvironmentName}-Ec2InstanceProfile" }

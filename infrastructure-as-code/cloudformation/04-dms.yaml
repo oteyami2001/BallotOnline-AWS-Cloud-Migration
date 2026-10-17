@@ -1,0 +1,154 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Description: >-
+  BallotOnline migration - AWS DMS resources for MySQL -> Aurora MySQL.
+  Private replication instance, source and target endpoints (ccs640mysql,
+  ccs640target) over TLS, and the ccs640migration task. Credentials are
+  read from AWS Secrets Manager at deploy time; none are stored here.
+
+Parameters:
+  EnvironmentName:
+    Type: String
+    Default: ballotonline
+    AllowedPattern: "^[a-z][a-z0-9-]{1,30}$"
+    Description: Must match the other stacks.
+  ReplicationInstanceClass:
+    Type: String
+    Default: dms.t3.medium
+    AllowedValues:
+      - dms.t3.medium
+      - dms.t3.large
+      - dms.c6i.large
+      - dms.r6i.large
+  AllocatedStorageGb:
+    Type: Number
+    Default: 50
+    MinValue: 20
+    MaxValue: 1000
+  SourceServerName:
+    Type: String
+    Description: Private DNS name or IP of the on-premises MySQL server (reachable over the VPN).
+  SourceUsername:
+    Type: String
+    Default: dms_migration
+    Description: Least-privilege user created by database-migration/mysql/source-preparation.sql.
+  SourcePasswordSecretName:
+    Type: String
+    Default: ballotonline/source-mysql/dms
+    Description: >-
+      Name of an existing Secrets Manager secret with a "password" key for the
+      source DMS user. Create it before deploying this stack.
+  DatabaseName:
+    Type: String
+    Default: ballotonline_hr
+  MigrationType:
+    Type: String
+    Default: full-load
+    AllowedValues: [full-load, full-load-and-cdc, cdc]
+    Description: The course project used full-load. Use full-load-and-cdc for minimal downtime.
+
+Resources:
+  ReplicationSubnetGroup:
+    Type: AWS::DMS::ReplicationSubnetGroup
+    Properties:
+      ReplicationSubnetGroupIdentifier: !Sub "${EnvironmentName}-dms-subnets"
+      ReplicationSubnetGroupDescription: Private DB subnets for DMS
+      SubnetIds:
+        - { "Fn::ImportValue": !Sub "${EnvironmentName}-DbSubnetA" }
+        - { "Fn::ImportValue": !Sub "${EnvironmentName}-DbSubnetB" }
+
+  ReplicationInstance:
+    Type: AWS::DMS::ReplicationInstance
+    Properties:
+      ReplicationInstanceIdentifier: !Sub "${EnvironmentName}-dms"
+      ReplicationInstanceClass: !Ref ReplicationInstanceClass
+      AllocatedStorage: !Ref AllocatedStorageGb
+      ReplicationSubnetGroupIdentifier: !Ref ReplicationSubnetGroup
+      VpcSecurityGroupIds:
+        - { "Fn::ImportValue": !Sub "${EnvironmentName}-DmsSg" }
+      KmsKeyId: { "Fn::ImportValue": !Sub "${EnvironmentName}-DataKeyArn" }
+      PubliclyAccessible: false
+      MultiAZ: false
+      AutoMinorVersionUpgrade: true
+
+  SourceEndpoint:
+    Type: AWS::DMS::Endpoint
+    Properties:
+      EndpointIdentifier: ccs640mysql
+      EndpointType: source
+      EngineName: mysql
+      ServerName: !Ref SourceServerName
+      Port: 3306
+      Username: !Ref SourceUsername
+      Password: !Sub "{{resolve:secretsmanager:${SourcePasswordSecretName}:SecretString:password}}"
+      SslMode: require
+
+  TargetEndpoint:
+    Type: AWS::DMS::Endpoint
+    Properties:
+      EndpointIdentifier: ccs640target
+      EndpointType: target
+      EngineName: aurora
+      ServerName: { "Fn::ImportValue": !Sub "${EnvironmentName}-AuroraWriterEndpoint" }
+      Port: 3306
+      Username:
+        Fn::Sub:
+          - "{{resolve:secretsmanager:${SecretArn}:SecretString:username}}"
+          - SecretArn: { "Fn::ImportValue": !Sub "${EnvironmentName}-AuroraSecretArn" }
+      Password:
+        Fn::Sub:
+          - "{{resolve:secretsmanager:${SecretArn}:SecretString:password}}"
+          - SecretArn: { "Fn::ImportValue": !Sub "${EnvironmentName}-AuroraSecretArn" }
+      SslMode: require
+      KmsKeyId: { "Fn::ImportValue": !Sub "${EnvironmentName}-DataKeyArn" }
+
+  MigrationTask:
+    Type: AWS::DMS::ReplicationTask
+    Properties:
+      ReplicationTaskIdentifier: ccs640migration
+      ReplicationInstanceArn: !Ref ReplicationInstance
+      SourceEndpointArn: !Ref SourceEndpoint
+      TargetEndpointArn: !Ref TargetEndpoint
+      MigrationType: !Ref MigrationType
+      # Same rules as database-migration/aws-dms/table-mappings.json
+      TableMappings: !Sub |
+        {
+          "rules": [
+            {
+              "rule-type": "selection",
+              "rule-id": "1",
+              "rule-name": "include-hr-schema-all-tables",
+              "object-locator": { "schema-name": "${DatabaseName}", "table-name": "%" },
+              "rule-action": "include",
+              "filters": []
+            },
+            {
+              "rule-type": "selection",
+              "rule-id": "2",
+              "rule-name": "exclude-temporary-tables",
+              "object-locator": { "schema-name": "${DatabaseName}", "table-name": "tmp_%" },
+              "rule-action": "exclude",
+              "filters": []
+            }
+          ]
+        }
+      # Key settings from database-migration/aws-dms/task-settings.json
+      ReplicationTaskSettings: |
+        {
+          "TargetMetadata": { "SupportLobs": true, "FullLobMode": false, "LimitedSizeLobMode": true, "LobMaxSize": 32 },
+          "FullLoadSettings": { "TargetTablePrepMode": "DROP_AND_CREATE", "MaxFullLoadSubTasks": 8, "CommitRate": 10000 },
+          "ValidationSettings": { "EnableValidation": true, "ValidationMode": "ROW_LEVEL", "ThreadCount": 5 },
+          "Logging": { "EnableLogging": true },
+          "ControlTablesSettings": { "ControlSchema": "awsdms_control", "HistoryTableEnabled": true, "SuspendedTablesTableEnabled": true, "StatusTableEnabled": true }
+        }
+
+Outputs:
+  ReplicationInstanceArn:
+    Value: !Ref ReplicationInstance
+  SourceEndpointArn:
+    Value: !Ref SourceEndpoint
+    Description: Test with "aws dms test-connection" before starting the task.
+  TargetEndpointArn:
+    Value: !Ref TargetEndpoint
+  MigrationTaskArn:
+    Value: !Ref MigrationTask
+    Description: Start with "aws dms start-replication-task --start-replication-task-type start-replication".
