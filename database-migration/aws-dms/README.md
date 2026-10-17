@@ -179,6 +179,30 @@ The project migration task was configured using:
 
 The migration task transfers the selected source tables to the target database.
 
+### Configuration Files
+
+| File | Purpose |
+|---|---|
+| [`table-mappings.json`](table-mappings.json) | Selection rules: include every table in `ballotonline_hr`, exclude `tmp_%` tables |
+| [`task-settings.json`](task-settings.json) | `DROP_AND_CREATE` target prep, row-level data validation, CloudWatch logging, control tables, error handling |
+
+The selection rule's `schema-name` must match the source schema **exactly**. A wrong schema name, or a migration user without `SELECT` on that schema, causes the *"No tables were found at task initialization"* failure described below.
+
+Example AWS CLI usage (identifiers are placeholders):
+
+```bash
+aws dms create-replication-task \
+  --replication-task-identifier ccs640migration \
+  --source-endpoint-arn <SOURCE_ENDPOINT_ARN> \
+  --target-endpoint-arn <TARGET_ENDPOINT_ARN> \
+  --replication-instance-arn <REPLICATION_INSTANCE_ARN> \
+  --migration-type full-load \
+  --table-mappings file://table-mappings.json \
+  --replication-task-settings file://task-settings.json
+```
+
+Use `--migration-type full-load-and-cdc` for a minimal-downtime migration.
+
 ## 7. Full Load
 
 During Full Load, AWS DMS copies existing records from the source database to the target.
@@ -280,8 +304,8 @@ FATAL_ERROR
 1. Confirm source endpoint connectivity.
 2. Verify database credentials.
 3. Confirm source schemas and tables exist.
-4. Review table mapping rules.
-5. Confirm the migration account can read required tables.
+4. Review table mapping rules (compare with [`table-mappings.json`](table-mappings.json)).
+5. Confirm the migration account can read required tables (`SHOW GRANTS`, see [`../mysql/source-preparation.sql`](../mysql/source-preparation.sql)).
 6. Review AWS DMS task logs.
 7. Run premigration assessments again.
 8. Restart the task only after connectivity and mapping issues are resolved.

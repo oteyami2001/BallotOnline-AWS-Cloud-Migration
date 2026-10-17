@@ -1,0 +1,45 @@
+{
+  "TargetMetadata": {
+    "SupportLobs": true,
+    "FullLobMode": false,
+    "LimitedSizeLobMode": true,
+    "LobMaxSize": 32
+  },
+  "FullLoadSettings": {
+    "TargetTablePrepMode": "DROP_AND_CREATE",
+    "MaxFullLoadSubTasks": 8,
+    "CommitRate": 10000,
+    "StopTaskCachedChangesApplied": false,
+    "StopTaskCachedChangesNotApplied": false
+  },
+  "ValidationSettings": {
+    "EnableValidation": true,
+    "ValidationMode": "ROW_LEVEL",
+    "ThreadCount": 5,
+    "FailureMaxCount": 10000
+  },
+  "Logging": {
+    "EnableLogging": true,
+    "LogComponents": [
+      { "Id": "SOURCE_UNLOAD",  "Severity": "LOGGER_SEVERITY_DEFAULT" },
+      { "Id": "SOURCE_CAPTURE", "Severity": "LOGGER_SEVERITY_DEFAULT" },
+      { "Id": "TARGET_LOAD",    "Severity": "LOGGER_SEVERITY_DEFAULT" },
+      { "Id": "TARGET_APPLY",   "Severity": "LOGGER_SEVERITY_DEFAULT" },
+      { "Id": "TASK_MANAGER",   "Severity": "LOGGER_SEVERITY_DEFAULT" }
+    ]
+  },
+  "ControlTablesSettings": {
+    "ControlSchema": "awsdms_control",
+    "HistoryTimeslotInMinutes": 5,
+    "HistoryTableEnabled": true,
+    "SuspendedTablesTableEnabled": true,
+    "StatusTableEnabled": true
+  },
+  "ErrorBehavior": {
+    "TableErrorPolicy": "SUSPEND_TABLE",
+    "DataErrorPolicy": "LOG_ERROR",
+    "ApplyErrorDeletePolicy": "IGNORE_RECORD",
+    "ApplyErrorInsertPolicy": "LOG_ERROR",
+    "ApplyErrorUpdatePolicy": "LOG_ERROR"
+  }
+}
