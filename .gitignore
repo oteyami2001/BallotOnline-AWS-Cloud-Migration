@@ -9,10 +9,7 @@ credentials
 *secret*
 *password*
 
-# CloudFormation / Terraform local state
-*.tfstate
-*.tfstate.*
-.terraform/
+# CloudFormation packaging output
 packaged-*.yaml
 
 # Database dumps

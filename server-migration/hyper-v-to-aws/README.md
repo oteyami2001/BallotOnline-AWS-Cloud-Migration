@@ -2,6 +2,8 @@
 
 ![BallotOnline AWS MGN server migration flow](../../architecture/diagrams/aws-mgn-server-migration-flow.svg)
 
+> **Scope:** 🎓 The rehost strategy for the Hyper-V servers was **planned** in the UMGC course project. 🛠️ This runbook, the scripts, and the checklist are portfolio work. The scripts pass `shellcheck` and AWS CLI parameter validation, but **no servers were migrated with them**.
+
 ## Overview
 
 This section documents the migration of BallotOnline's **Microsoft Hyper-V** virtual servers to **Amazon EC2** using **AWS Application Migration Service (AWS MGN)**.

@@ -4,7 +4,7 @@
 
 Full write-up: [`aws-dms/README.md`](aws-dms/README.md)
 
-MySQL HR database → AWS DMS (full load + CDC) → Amazon Aurora MySQL.
+MySQL HR database → AWS DMS → Amazon Aurora MySQL. The course lab used a Full Load task; Full Load + CDC is the recommended production option ([cutover runbook](../cutover-rollback/cutover-runbook.md#choosing-the-database-cutover-method)).
 
 | Folder | Contents |
 |---|---|

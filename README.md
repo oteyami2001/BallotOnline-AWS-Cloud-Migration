@@ -1,472 +1,168 @@
-# ☁️ BallotOnline AWS Cloud Migration
+# BallotOnline AWS Cloud Migration
 
-![AWS](https://img.shields.io/badge/AWS-Cloud_Migration-orange?style=for-the-badge&logo=amazonwebservices)
-![Amazon Aurora](https://img.shields.io/badge/Amazon_Aurora-MySQL-blue?style=for-the-badge&logo=amazonrds)
-![AWS DMS](https://img.shields.io/badge/AWS_DMS-Database_Migration-orange?style=for-the-badge&logo=amazonwebservices)
-![CloudFormation](https://img.shields.io/badge/AWS-CloudFormation-orange?style=for-the-badge&logo=amazonwebservices)
-![MySQL](https://img.shields.io/badge/MySQL-Database-blue?style=for-the-badge&logo=mysql)
-![Linux](https://img.shields.io/badge/Linux-Server-black?style=for-the-badge&logo=linux)
+**On-Premises → AWS** · MySQL → Aurora · Hyper-V → EC2 · DMS · MGN · CloudFormation · Security · Monitoring · DR
 
 [![Validate](https://github.com/oteyami2001/BallotOnline-AWS-Cloud-Migration/actions/workflows/validate.yml/badge.svg)](https://github.com/oteyami2001/BallotOnline-AWS-Cloud-Migration/actions/workflows/validate.yml)
 
-End-to-end AWS cloud migration project for BallotOnline, including MySQL-to-Aurora migration with AWS DMS, Hyper-V server migration, CloudFormation, security, monitoring, cutover, rollback, and postmigration optimization.
+![AWS](https://img.shields.io/badge/AWS-232F3E?style=flat-square)
+![Amazon EC2](https://img.shields.io/badge/Amazon_EC2-FF9900?style=flat-square)
+![Amazon Aurora](https://img.shields.io/badge/Amazon_Aurora-527FFF?style=flat-square)
+![AWS DMS](https://img.shields.io/badge/AWS_DMS-01A88D?style=flat-square)
+![AWS MGN](https://img.shields.io/badge/AWS_Application_Migration_Service-01A88D?style=flat-square)
+![CloudFormation](https://img.shields.io/badge/CloudFormation-E7157B?style=flat-square)
+![CloudWatch](https://img.shields.io/badge/CloudWatch-E7157B?style=flat-square)
+![Systems Manager](https://img.shields.io/badge/Systems_Manager-E7157B?style=flat-square)
+![IAM](https://img.shields.io/badge/IAM-DD344C?style=flat-square)
+![KMS](https://img.shields.io/badge/KMS-DD344C?style=flat-square)
+![GuardDuty](https://img.shields.io/badge/GuardDuty-DD344C?style=flat-square)
+![MySQL](https://img.shields.io/badge/MySQL-4479A1?style=flat-square&logo=mysql&logoColor=white)
+![Linux](https://img.shields.io/badge/Linux-333333?style=flat-square&logo=linux&logoColor=white)
+![GitHub Actions](https://img.shields.io/badge/GitHub_Actions-2088FF?style=flat-square&logo=githubactions&logoColor=white)
 
 ---
 
-## 📑 Table of Contents
+## Executive Summary
 
-- [Project Overview](#-project-overview)
-- [Project Scope and Validation Status](#-project-scope-and-validation-status)
-- [Project Objectives](#-project-objectives)
-- [Migration Architecture](#️-migration-architecture)
-- [Cloud Migration Strategy](#-cloud-migration-strategy)
-- [AWS Services Used](#️-aws-services-used)
-- [AWS Database Migration Service](#️-aws-database-migration-service)
-- [Security Architecture](#-security-architecture)
-- [Infrastructure as Code](#️-infrastructure-as-code)
-- [Monitoring and Management](#-monitoring-and-management)
-- [Cutover Strategy](#-cutover-strategy)
-- [Rollback Strategy](#️-rollback-strategy)
-- [Postmigration Activities](#-postmigration-activities)
-- [Cloud Migration Recommendations](#-cloud-migration-recommendations)
-- [Repository Structure](#-repository-structure)
-- [Skills Demonstrated](#-skills-demonstrated)
-- [Academic Context](#-academic-context)
-- [Author](#-author)
+**BallotOnline** runs its HR database and internal services on aging on-premises infrastructure. A MySQL server holds employee records, and a single Microsoft Hyper-V host runs the Intranet, FTP, and NTP servers. The environment has limited capacity, no high availability, manual database administration, and little centralized security logging or monitoring.
+
+The objective is to move these workloads to AWS with minimal disruption, while improving availability, security, and operations. Two strategies were chosen per workload:
+
+- **Replatform** the MySQL HR database to **Amazon Aurora MySQL** using **AWS DMS**, which removes manual backups, patching, and failover work without application changes.
+- **Rehost** the Hyper-V servers to **Amazon EC2** using **AWS Application Migration Service (MGN)**, the fastest and lowest-risk path for these workloads.
+
+The target runs in a private, two-Availability-Zone VPC connected to the office by Site-to-Site VPN. Security is built in: least-privilege IAM with MFA, KMS encryption, TLS everywhere, Secrets Manager, CloudTrail, and GuardDuty. Operations use CloudWatch alarms, EventBridge, Systems Manager, and Trusted Advisor, backed by cutover, rollback, and disaster recovery runbooks.
+
+The project began as UMGC coursework. This repository turns it into an engineering portfolio, with seven CloudFormation stacks, migration scripts, validation SQL, IAM policies, runbooks, and CI that checks everything on every pull request.
 
 ---
 
-## 📌 Project Overview
-
-The **BallotOnline AWS Cloud Migration Project** is an academic cloud engineering project completed as part of the Cloud Computing Systems program at the **University of Maryland Global Campus (UMGC)**.
-
-The project evaluates, designs, and implements a migration strategy for BallotOnline's existing IT infrastructure to Amazon Web Services (AWS).
-
-The migration focuses on two major workloads:
-
-1. Migrating an on-premises **MySQL HR database** to **Amazon Aurora MySQL**.
-2. Migrating **Microsoft Hyper-V virtual servers** hosting infrastructure services to AWS.
-
-The project also covers migration planning, security, automation, monitoring, validation, cutover, rollback, and postmigration optimization.
-
----
-
-## 🧭 Project Scope and Validation Status
-
-This repository combines work from the UMGC course project with portfolio extensions built afterwards. They are labeled separately so it is clear what was done where.
-
-| Area | UMGC course project | Implemented in this repository | Deployed to a real AWS account from this repo? |
-|---|---|---|---|
-| MySQL → Aurora with AWS DMS | **Performed in the course lab:** endpoints `ccs640mysql` / `ccs640target`, task `ccs640migration` (Full Load), troubleshooting of `DMS-00001` and "No tables were found" | Write-up, source-prep and validation SQL (tested on MySQL 8.0), DMS mappings and settings | No |
-| Hyper-V → EC2 with AWS MGN | Rehost strategy planned | Runbook, agent-install and lifecycle scripts, validation checklist | No |
-| Infrastructure as Code | CloudFormation evaluated for automation | Seven CloudFormation stacks and `deploy.sh`, validated with `cfn-lint` in CI | **No.** Validated only. |
-| Security and governance | Security controls evaluated | Security groups, KMS, IAM policies, CloudTrail, GuardDuty, Access Analyzer, optional Security Hub (`05-governance.yaml`) | **No.** Validated only. |
-| Monitoring and operations | CloudWatch, Systems Manager, and Trusted Advisor evaluated | Alarms, dashboard, event rules, SSM associations, Automation runbook, Trusted Advisor script | **No.** Validated only. |
-| Cutover, rollback, DR | Cutover and rollback strategy planned | Runbooks and checklists in [`cutover-rollback/`](cutover-rollback/) | No production cutover, rollback, or DR test was performed |
-
-**How the code is validated:** every pull request runs `cfn-lint` on all templates, `shellcheck` on shell scripts, JSON and YAML syntax checks, and a Markdown link check ([workflow](.github/workflows/validate.yml)). SQL scripts were tested against a local MySQL 8.0 server, and AWS CLI scripts were checked against the CLI's parameter validation. None of this replaces a real deployment.
-
----
-
-## 🎯 Project Objectives
-
-The primary objectives of this project are to:
-
-- Assess BallotOnline's existing infrastructure.
-- Select appropriate cloud migration strategies.
-- Compare cloud migration tools.
-- Migrate an on-premises MySQL database to AWS.
-- Implement AWS Database Migration Service (AWS DMS).
-- Design a Hyper-V-to-AWS migration strategy.
-- Automate AWS infrastructure deployment.
-- Implement security and monitoring controls.
-- Validate migrated workloads.
-- Develop cutover and rollback procedures.
-- Evaluate postmigration optimization opportunities.
-
----
-
-## 🏗️ Migration Architecture
-
-### Source Environment — On-Premises Infrastructure
-
-- MySQL HR Database
-- Microsoft Hyper-V
-- Intranet Server
-- FTP Server
-- NTP Server
-- Local Network Infrastructure
-
-### Target AWS Environment
-
-- Amazon VPC
-- Amazon EC2
-- Amazon Aurora MySQL
-- AWS Database Migration Service
-- AWS Application Migration Service
-- AWS CloudFormation
-- Amazon CloudWatch
-- AWS Systems Manager
-- AWS Trusted Advisor
-- AWS IAM
-- Security Groups
-
-### High-Level Architecture
+## Target Architecture
 
 ![BallotOnline AWS target architecture](architecture/diagrams/aws-target-architecture.svg)
 
-See [`architecture/migration-architecture.md`](architecture/migration-architecture.md) for the full before / during / after design.
-
-#### Text Overview
-
-```text
-            ON-PREMISES                                   AWS CLOUD (VPC)
- ┌──────────────────────────────┐           ┌──────────────────────────────────────┐
- │                              │           │                                      │
- │  MySQL HR Database  ─────────┼── DMS ───▶│  Amazon Aurora MySQL (private subnet)│
- │                              │           │                                      │
- │  Hyper-V Hosts               │           │                                      │
- │   ├─ Intranet Server ────────┼── MGN ───▶│  Amazon EC2 (Intranet)               │
- │   ├─ FTP Server      ────────┼── MGN ───▶│  Amazon EC2 (FTP)                    │
- │   └─ NTP Server      ────────┼── MGN ───▶│  Amazon EC2 (NTP)                    │
- │                              │           │                                      │
- └──────────────────────────────┘           │  CloudFormation · IAM · Security     │
-                                            │  Groups · CloudWatch · Systems       │
-                                            │  Manager · Trusted Advisor           │
-                                            └──────────────────────────────────────┘
-```
+Full design: [`architecture/migration-architecture.md`](architecture/migration-architecture.md). Before, during, and after-migration views, network and security design, and design decisions.
 
 ---
 
-## 🔄 Cloud Migration Strategy
+## What I Built
 
-Two primary migration approaches were selected.
-
-| Workload | Strategy | AWS Tool | Target |
-|----------|----------|----------|--------|
-| MySQL HR database | **Replatform** | AWS DMS | Amazon Aurora MySQL |
-| Hyper-V servers (Intranet, FTP, NTP) | **Rehost** (lift-and-shift) | AWS Application Migration Service | Amazon EC2 |
-
-### 🗄️ Database Migration — Replatform
-
-The BallotOnline HR MySQL database is migrated from the existing environment to **Amazon Aurora MySQL**.
-
-```text
-On-Premises MySQL
-        |
-        v
-AWS Database Migration Service
-        |
-        v
-Amazon Aurora MySQL
-```
-
-AWS DMS is used to migrate the database while minimizing service interruption. The migration process includes:
-
-- Source database preparation
-- Target database preparation
-- AWS DMS endpoints
-- Replication configuration
-- Full Load
-- Change Data Capture (CDC)
-- Data validation
-- Application testing
-- Final cutover
-
-### 🖥️ Hyper-V Migration — Rehost
-
-BallotOnline's Hyper-V workloads use a rehosting (lift-and-shift) migration strategy.
-
-```text
-On-Premises Hyper-V
-        |
-        v
-AWS Application Migration Service
-        |
-        v
-Amazon EC2
-```
-
-The migrated workloads include services such as:
-
-- Intranet
-- FTP
-- NTP
-
-The migration process includes replication, testing, validation, cutover, and rollback planning.
+| Area | Implementation |
+|---|---|
+| **Database Migration** | MySQL → AWS DMS → Aurora MySQL: [source preparation SQL](database-migration/mysql/source-preparation.sql), [table mappings](database-migration/aws-dms/table-mappings.json) and [task settings](database-migration/aws-dms/task-settings.json), [validation SQL](database-migration/aurora/validation-queries.sql) |
+| **Server Migration** | Hyper-V → AWS MGN → EC2: [runbook](server-migration/hyper-v-to-aws/README.md), agent install scripts, [MGN lifecycle script](server-migration/hyper-v-to-aws/scripts/mgn-lifecycle.sh), [validation checklist](server-migration/hyper-v-to-aws/cutover-validation-checklist.md) |
+| **Networking** | VPC across two AZs; public, app, DB, and staging subnets; NAT; routing; Site-to-Site VPN; Flow Logs |
+| **Infrastructure as Code** | [Seven AWS CloudFormation stacks](infrastructure-as-code/cloudformation/) with an ordered [`deploy.sh`](infrastructure-as-code/cloudformation/deploy.sh) |
+| **Security** | IAM least privilege and [MFA policies](security/iam-policies/), KMS, Secrets Manager, TLS-only database, CloudTrail, GuardDuty, IAM Access Analyzer |
+| **Monitoring** | CloudWatch alarms (22) and dashboard, CIS-style security alarms, SNS alerting, EventBridge rules |
+| **Operations** | Systems Manager (Session Manager, Patch Manager, Inventory, read-only [Automation runbook](monitoring/systems-manager/automation-runbook.yaml)), [Trusted Advisor review](monitoring/trusted-advisor/README.md) |
+| **Cutover & DR** | [Cutover runbook](cutover-rollback/cutover-runbook.md), [go/no-go](cutover-rollback/go-no-go-checklist.md), [rollback plan](cutover-rollback/rollback-plan.md), [DR](cutover-rollback/disaster-recovery.md): Aurora backups and PITR, EC2 recovery, rebuild from code |
+| **CI** | [GitHub Actions](.github/workflows/validate.yml): `cfn-lint`, `shellcheck`, JSON/YAML syntax, SVG/XML checks, Markdown link check, secret-pattern scan |
 
 ---
 
-## 🛠️ AWS Services Used
+## Project Scope and Evidence
 
-| AWS Service | Purpose |
-|-------------|---------|
-| Amazon EC2 | Hosts migrated server workloads |
-| Amazon Aurora | Managed MySQL-compatible database |
-| AWS DMS | Database migration and replication |
-| AWS Application Migration Service | Server migration |
-| Amazon VPC | Network isolation |
-| AWS IAM | Identity and access management |
-| AWS CloudFormation | Infrastructure automation |
-| Amazon CloudWatch | Monitoring and logging |
-| AWS Systems Manager | Infrastructure management and automation |
-| AWS Trusted Advisor | Security, cost, performance, and reliability recommendations |
+| Label | Meaning | Examples |
+|---|---|---|
+| 🎓 **Academic work** | Activities performed in the UMGC BallotOnline cloud migration coursework | Migration strategy (replatform DB, rehost servers); AWS DMS endpoints `ccs640mysql` / `ccs640target` and Full Load task `ccs640migration` configured and run in the course lab, including the troubleshooting below; Hyper-V rehost planned; CloudFormation, CloudWatch, Systems Manager, and Trusted Advisor evaluated |
+| 🛠️ **Portfolio implementation** | Code, templates, scripts, automation, diagrams, and runbooks created to turn the academic design into an engineering portfolio | Everything in this repository: CloudFormation stacks, scripts, SQL, IAM policies, runbooks, diagrams, CI |
+| 📋 **Production recommendations** | Controls and practices recommended for a real deployment but not implemented or run | Proposed RTO/RPO targets, reverse-replication rollback, AWS Backup plans, cross-Region copies, alarms marked *recommended* |
+
+> **Deployment status:** the infrastructure templates in this repository have been statically validated and tested where possible (`cfn-lint`, `shellcheck`, SQL against a local MySQL 8.0, AWS CLI parameter validation), but the complete environment has **not** been deployed as a production BallotOnline system in a live AWS account. No production cutover, rollback, or DR test was performed.
 
 ---
 
-## 🗄️ AWS Database Migration Service
+## Key Engineering Challenges
 
-AWS DMS plays a central role in migrating the BallotOnline HR database.
+These issues came up while running AWS DMS in the course lab. The troubleshooting below is what the repository documents and now guards against. It is not a claim that a production migration was completed.
 
-### Migration Stages
-
-1. **Source Preparation** — Configure the existing MySQL database to support migration and replication.
-2. **Target Preparation** — Deploy and configure Amazon Aurora MySQL.
-3. **DMS Configuration** — Configure:
-   - Source endpoint
-   - Target endpoint
-   - Replication resources
-   - Network connectivity
-   - Security groups
-   - IAM permissions
-4. **Full Load** — Transfer existing data from the source database to Amazon Aurora.
-5. **Change Data Capture (CDC)** — Capture database changes occurring during the migration.
-6. **Validation** — Validate the migrated database before production cutover.
-7. **Cutover** — Redirect applications to the AWS-hosted database after successful testing.
+| Challenge | What happened | Troubleshooting approach | Where the repo addresses it |
+|---|---|---|---|
+| **Source endpoint connection failure** | Premigration assessment reported an ODBC-related failure connecting to the source MySQL | Checked source availability, credentials, routing, security rules, permissions, DNS | [DMS write-up](database-migration/aws-dms/README.md#issue-1--source-endpoint-connection-failure); endpoint tests are a blocking [go/no-go](cutover-rollback/go-no-go-checklist.md) item |
+| **Hostname / DNS resolution (`DMS-00001`)** | Endpoint test: the MySQL server host name could not be resolved | Traced it to name resolution from the replication instance | The [CloudFormation README](infrastructure-as-code/cloudformation/README.md#-design-notes) explains why: the VPC resolver doesn't know on-prem names. Fix by using the private IP or a Route 53 Resolver outbound endpoint. |
+| **"No tables were found at task initialization" (`FATAL_ERROR`)** | Task stopped with no tables selected | Checked connectivity, schema name, table-mapping rules, and the migration user's grants; reviewed task logs | [`table-mappings.json`](database-migration/aws-dms/table-mappings.json) with an exact schema name; `SHOW GRANTS` check in [`source-preparation.sql`](database-migration/mysql/source-preparation.sql) |
+| **Schema and mapping considerations** | DMS creates tables and primary keys only | Inventory of views, routines, triggers, and tables without primary keys before migrating | Sections 4–7 of `source-preparation.sql`; schema checks in `validation-queries.sql` |
+| **Database permissions** | The migration user needs read and replication rights, but no more | Dedicated `dms_migration` user, restricted to the DMS subnet, TLS required | `source-preparation.sql`, [security controls](security/security-controls.md#database-accounts) |
+| **Migration validation** | A finished task does not prove the data is correct | Row counts, content hashes, spot checks, DMS row-level validation | [`validation-queries.sql`](database-migration/aurora/validation-queries.sql) with a sign-off checklist |
 
 ---
 
-## 🔐 Security Architecture
+## Lessons Learned
 
-Security is incorporated throughout the migration. Key controls include:
-
-- AWS Identity and Access Management (IAM)
-- Principle of least privilege
-- Multi-Factor Authentication (MFA)
-- Security Groups
-- Private networking
-- Encryption in transit
-- Encryption at rest
-- Database access controls
-- Logging and monitoring
-- IAM roles
-- AWS security best practices
+- **Validate connectivity before migration.** Test both DMS endpoints before creating a task.
+- **Test DNS resolution** from where the migration actually runs, not from your laptop.
+- **Validate schema names and table mappings.** One wrong name selects zero tables.
+- **Apply least privilege** to migration accounts and remove them afterwards.
+- **Plan and test rollback before cutover.** Once users write to the target, rollback needs data reconciliation, not just a DNS change.
+- **Treat monitoring as part of migration design,** not something added after go-live.
+- **Infrastructure as Code improves repeatability,** for rebuilds, DR, and review.
+- **Migration success needs technical and business validation:** correct data *and* users signing off.
 
 ---
 
-## ⚙️ Infrastructure as Code
+## Repository Navigation
 
-AWS CloudFormation is used to automate infrastructure deployment. Four stacks (network, security, Aurora, DMS) live in [`infrastructure-as-code/cloudformation/`](infrastructure-as-code/cloudformation/) and are linted on every pull request. Infrastructure as Code helps provide:
-
-- Repeatable deployments
-- Standardized configurations
-- Version-controlled infrastructure
-- Reduced configuration errors
-- Faster disaster recovery
-- Easier environment recreation
-
----
-
-## 📊 Monitoring and Management
-
-![BallotOnline observability and operations](architecture/diagrams/monitoring-operations.svg)
-
-Monitoring is defined by the [`06-monitoring`](infrastructure-as-code/cloudformation/06-monitoring.yaml) and [`07-operations`](infrastructure-as-code/cloudformation/07-operations.yaml) stacks. See [`monitoring/`](monitoring/) for every alarm, event rule, and Systems Manager association.
-
-### Amazon CloudWatch
-
-CloudWatch provides:
-
-- Infrastructure monitoring
-- Metrics
-- Logs
-- Alarms
-- Performance monitoring
-
-### AWS Systems Manager
-
-Systems Manager provides centralized infrastructure management and automation. Example capabilities include:
-
-- Automation
-- Patch management
-- Remote management
-- Inventory
-- Operational visibility
-
-### AWS Trusted Advisor
-
-Trusted Advisor is evaluated for recommendations related to:
-
-- Cost optimization
-- Performance
-- Security
-- Fault tolerance
-- Service limits
+| Section | What you'll find |
+|---|---|
+| [Architecture](architecture/) | Target design, network/security design, five diagrams |
+| [Database Migration](database-migration/) | DMS write-up and troubleshooting, source prep SQL, mappings and settings, validation SQL |
+| [Server Migration](server-migration/hyper-v-to-aws/) | MGN runbook, agent install and lifecycle scripts, validation checklist |
+| [Infrastructure as Code](infrastructure-as-code/cloudformation/) | Seven CloudFormation stacks and `deploy.sh` |
+| [Security](security/) | Controls by layer, risk register, IAM policies, security checklist |
+| [Monitoring](monitoring/) | Alarm catalog, CloudWatch, Systems Manager, Trusted Advisor, operations model |
+| [Cutover & Rollback](cutover-rollback/) | Cutover runbook, go/no-go, rollback plan, post-cutover validation |
+| [Disaster Recovery](cutover-rollback/disaster-recovery.md) | Backups, PITR, EC2 recovery, rebuild from code, RTO/RPO, business continuity |
+| [Evidence](screenshots/) | Sanitized screenshot categories and redaction rules |
+| [Interview Talking Points](docs/interview-talking-points.md) | STAR-style summaries of the project |
 
 ---
 
-## 🔄 Cutover Strategy
+## Repository Status
 
-![BallotOnline cutover and rollback flow](architecture/diagrams/cutover-rollback-flow.svg)
-
-The full procedure is in [`cutover-rollback/`](cutover-rollback/): a [T-7 days → T+24 hours runbook](cutover-rollback/cutover-runbook.md), a [go/no-go checklist](cutover-rollback/go-no-go-checklist.md), and [post-cutover validation](cutover-rollback/post-cutover-validation.md). These are procedures; no production cutover was performed.
-
-Before production cutover, the migrated environment is validated through:
-
-1. Database validation
-2. Application testing
-3. Network testing
-4. Security validation
-5. Performance testing
-6. User acceptance testing
-7. Final data synchronization
-
-After successful validation, production traffic can be redirected to the AWS environment.
+| Item | Status |
+|---|---|
+| CI | [![Validate](https://github.com/oteyami2001/BallotOnline-AWS-Cloud-Migration/actions/workflows/validate.yml/badge.svg)](https://github.com/oteyami2001/BallotOnline-AWS-Cloud-Migration/actions/workflows/validate.yml) |
+| Documentation | Complete for all phases: architecture, database, servers, IaC, security, monitoring, cutover, DR |
+| Project type | Academic project (UMGC) + engineering portfolio |
+| AWS deployment | Not deployed as a complete production environment; templates statically validated |
+| Evidence | Screenshot categories defined; sanitized screenshots added only when available |
 
 ---
 
-## ↩️ Rollback Strategy
+## Skills Demonstrated
 
-A rollback plan is maintained in case critical problems occur during migration. Rollback considerations include:
-
-- Maintaining the original environment during cutover
-- Database backups
-- Migration checkpoints
-- DNS rollback
-- Application rollback
-- Database synchronization
-- Recovery procedures
-
-> The legacy environment should remain available until the AWS environment has been fully validated.
-
-Once users write to Aurora, rollback means bringing that data back to MySQL first. See the [rollback plan](cutover-rollback/rollback-plan.md#data-consistency-after-cutover). Recovery after go-live is covered in [disaster recovery](cutover-rollback/disaster-recovery.md) and [business continuity](cutover-rollback/business-continuity.md).
+`AWS Architecture` `Cloud Migration` `AWS DMS` `AWS MGN` `Amazon Aurora` `Amazon EC2` `CloudFormation` `IAM` `KMS` `CloudWatch` `Systems Manager` `Networking` `Security` `Linux` `MySQL` `Disaster Recovery` `GitHub Actions` `Troubleshooting`
 
 ---
 
-## 📈 Postmigration Activities
-
-After migration, the AWS environment is evaluated for:
-
-| Area | Focus |
-|------|-------|
-| **Performance** | Monitor CPU, memory, database performance, network activity, and application response times. |
-| **Security** | Review IAM permissions, Security Groups, encryption, logging, and security recommendations. |
-| **Cost** | Identify underutilized resources and opportunities for cost optimization. |
-| **Reliability** | Evaluate backup, disaster recovery, high availability, and fault tolerance. |
-| **Automation** | Use CloudFormation and Systems Manager to reduce manual administration. |
-
----
-
-## 💡 Cloud Migration Recommendations
-
-The final architecture emphasizes:
-
-- Least-privilege IAM
-- MFA
-- Encryption at rest and in transit
-- Automated infrastructure deployment
-- Centralized monitoring
-- Database backups
-- Disaster recovery
-- Continuous optimization
-- Regular security assessments
-- Infrastructure as Code
-
----
-
-## 📁 Repository Structure
+## Repository Structure
 
 ```text
 BallotOnline-AWS-Cloud-Migration/
-│
-├── README.md
-│
 ├── architecture/
-│   ├── diagrams/
-│   └── migration-architecture.md
-│
+│   ├── migration-architecture.md      # before / during / after design
+│   └── diagrams/                      # target, DMS, MGN, monitoring, cutover (SVG)
 ├── database-migration/
-│   ├── aws-dms/
-│   ├── mysql/
-│   └── aurora/
-│
-├── server-migration/
-│   └── hyper-v-to-aws/
-│
-├── infrastructure-as-code/
-│   └── cloudformation/
-│
-├── security/
-│   ├── security-controls.md
-│   ├── security-checklist.md
-│   └── iam-policies/
-│
-├── monitoring/
-│   ├── cloudwatch/              # alarm catalog, metrics, logs
-│   ├── systems-manager/         # SSM capabilities, Automation runbook
-│   ├── trusted-advisor/         # evaluation, report script
-│   ├── postmigration-operations.md
-│   └── operational-checklist.md
-│
-├── cutover-rollback/
-│   ├── cutover-runbook.md       # T-7 days → T+24 hours
-│   ├── go-no-go-checklist.md
-│   ├── rollback-plan.md
-│   ├── post-cutover-validation.md
-│   ├── disaster-recovery.md
-│   └── business-continuity.md
-│
-├── screenshots/
-│
-└── docs/
-    ├── migration-plan/
-    └── postmigration-report/
+│   ├── mysql/source-preparation.sql
+│   ├── aws-dms/                       # write-up, table-mappings.json, task-settings.json
+│   └── aurora/validation-queries.sql
+├── server-migration/hyper-v-to-aws/   # MGN runbook, scripts, validation checklist
+├── infrastructure-as-code/cloudformation/
+│   ├── 01-network.yaml … 07-operations.yaml
+│   └── deploy.sh
+├── security/                          # controls, checklist, IAM policies
+├── monitoring/                        # CloudWatch, Systems Manager, Trusted Advisor, operations
+├── cutover-rollback/                  # runbook, go/no-go, rollback, validation, DR, continuity
+├── screenshots/                       # sanitized evidence by category
+├── docs/interview-talking-points.md
+└── .github/                           # CI workflow and link checker
 ```
 
 ---
 
-## 🧰 Skills Demonstrated
+## Academic Context and Author
 
-This project demonstrates practical knowledge of:
+This project originated as the **BallotOnline cloud migration** case study in the Master of Science in Cloud Computing Systems program at the **University of Maryland Global Campus (UMGC)**. The repository contains original work only; no course materials or assignment instructions are reproduced.
 
-`AWS` `Cloud Architecture` `Cloud Migration` `AWS DMS` `Amazon Aurora` `MySQL` `Amazon EC2` `AWS Application Migration Service` `AWS CloudFormation` `Amazon CloudWatch` `AWS Systems Manager` `AWS Trusted Advisor` `IAM` `Cloud Security` `Infrastructure as Code` `Database Migration` `Disaster Recovery` `Cutover & Rollback Planning`
-
----
-
-## 🎓 Academic Context
-
-| | |
-|---|---|
-| **Program** | Master of Science – Cloud Computing Systems |
-| **University** | University of Maryland Global Campus (UMGC) |
-| **Project** | BallotOnline Cloud Migration |
-| **Author** | Thierry A. Oteyami |
-
-This repository documents an academic cloud migration project and is intended to demonstrate cloud engineering, architecture, migration, security, and automation skills.
-
-> **Note:** Credentials, AWS account IDs, IP addresses, private endpoints, and other sensitive details have been removed or replaced with placeholders.
-
----
-
-## 👨‍💻 Author
-
-**Thierry A. Oteyami**
-Cloud Engineer | Oracle DBA | Software Developer
-
-Areas of expertise:
-
-- AWS
-- Oracle Cloud Infrastructure
-- Oracle Database
-- Terraform
-- Kubernetes
-- Docker
-- Cloud Migration
-- Database Migration
-- Infrastructure Automation
-
----
-
-## ⭐ Project Purpose
-
-This repository serves both as documentation of the BallotOnline cloud migration project and as a portfolio demonstration of practical AWS Cloud Engineering and Cloud Migration skills.
+**Thierry A. Oteyami**, Cloud Engineer · Oracle DBA · Software Developer
+GitHub: [@oteyami2001](https://github.com/oteyami2001)

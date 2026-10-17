@@ -2,6 +2,8 @@
 
 ![BallotOnline AWS DMS migration flow](../../architecture/diagrams/aws-dms-migration-flow.svg)
 
+> **Scope:** 🎓 The DMS endpoints, the Full Load task, and the troubleshooting below were performed in the **UMGC course lab**. 🛠️ The SQL scripts, JSON configuration, and CloudFormation definitions were written afterwards for this portfolio and were tested locally, not in a production account.
+
 ## Overview
 
 This section documents the migration of BallotOnline's on-premises **MySQL HR database** to **Amazon Aurora MySQL** using **AWS Database Migration Service (AWS DMS)**.
