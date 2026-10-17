@@ -114,7 +114,7 @@ Rather than maintaining the database on a traditional virtual machine, the targe
 
 ## 3. Hyper-V Server Migration Architecture
 
-BallotOnline's Hyper-V workloads use a **rehosting (lift-and-shift)** strategy. The servers are moved without changes to the operating system or applications, which keeps migration risk and effort low. Modernization happens after migration (see [Section 8](#8-postmigration-optimization-opportunities)).
+BallotOnline's Hyper-V workloads use a **rehosting (lift-and-shift)** strategy. The servers are moved without changes to the operating system or applications, which keeps migration risk and effort low. Modernization happens after migration (see [Section 10](#10-postmigration-optimization-opportunities)).
 
 ### Migration Flow
 
@@ -261,6 +261,8 @@ The target environment runs in a single AWS Region across **two Availability Zon
 
 ### Security Principles
 
+Security is incorporated into the architecture using multiple AWS controls across identity, network, encryption, and monitoring.
+
 - **Least privilege:** IAM roles for EC2, DMS, and MGN; no long-term access keys on servers.
 - **Private by default:** no workload has a public IP; administration uses Systems Manager Session Manager instead of open SSH/RDP ports.
 - **Encryption at rest:** EBS volumes, Aurora storage, snapshots, and backups encrypted with AWS KMS.
@@ -272,7 +274,24 @@ See [`security/security-controls.md`](../security/security-controls.md) for full
 
 ---
 
-## 7. Monitoring and Operations
+## 7. Infrastructure Automation
+
+AWS CloudFormation is used to support Infrastructure as Code (IaC). The VPC, subnets, security groups, IAM roles, Aurora cluster, DMS resources, and EC2 launch configuration are defined in templates instead of being built by hand in the console.
+
+CloudFormation provides:
+
+- Repeatable infrastructure deployment
+- Configuration consistency
+- Version-controlled templates
+- Reduced manual configuration
+- Faster environment reconstruction
+- Improved disaster recovery readiness
+
+See [`infrastructure-as-code/cloudformation/`](../infrastructure-as-code/cloudformation/) for the templates.
+
+---
+
+## 8. Monitoring and Management
 
 ```text
  EC2 · Aurora · DMS · VPN
@@ -304,7 +323,37 @@ See the [`monitoring/`](../monitoring/) folder for CloudWatch, Systems Manager, 
 
 ---
 
-## 8. Postmigration Optimization Opportunities
+## 9. High-Level Migration Flow
+
+```text
+                    BALLOTONLINE
+                    ON-PREMISES
+                         │
+           ┌─────────────┴─────────────┐
+           │                           │
+           ▼                           ▼
+   MySQL HR Database            Hyper-V Servers
+           │                           │
+           ▼                           ▼
+        AWS DMS              AWS Application
+           │                 Migration Service
+           ▼                           │
+     Aurora MySQL                      ▼
+           │                      Amazon EC2
+           │                           │
+           └─────────────┬─────────────┘
+                         ▼
+                   AWS OPERATIONS
+                         │
+           ┌─────────────┼─────────────┐
+           ▼             ▼             ▼
+      CloudWatch      Systems       Trusted
+                      Manager       Advisor
+```
+
+---
+
+## 10. Postmigration Optimization Opportunities
 
 Rehosting moves workloads quickly; these follow-up steps take advantage of managed AWS services:
 
@@ -318,7 +367,7 @@ Rehosting moves workloads quickly; these follow-up steps take advantage of manag
 
 ---
 
-## 9. Key Design Decisions
+## 11. Key Design Decisions
 
 | Decision | Rationale |
 |---|---|
@@ -329,6 +378,33 @@ Rehosting moves workloads quickly; these follow-up steps take advantage of manag
 | Private subnets + Site-to-Site VPN | Internal services stay off the public internet. |
 | Infrastructure as Code (CloudFormation) | Repeatable, version-controlled environments; faster disaster recovery. |
 | Keep on-premises environment during rollback window | Allows a fast return to the source if critical issues appear after cutover. |
+
+---
+
+## 12. Architecture Benefits
+
+The target architecture provides BallotOnline with:
+
+- Improved scalability
+- Managed database capabilities
+- Reduced infrastructure management
+- Centralized monitoring
+- Infrastructure automation
+- Stronger security controls
+- Improved disaster recovery capabilities
+- Greater operational flexibility
+
+---
+
+## 13. Conclusion
+
+The BallotOnline migration architecture combines replatforming and rehosting strategies based on workload requirements.
+
+The MySQL HR database is replatformed to Amazon Aurora MySQL using AWS Database Migration Service, while the Hyper-V workloads are rehosted on Amazon EC2 using AWS Application Migration Service.
+
+AWS IAM, Security Groups, CloudWatch, Systems Manager, Trusted Advisor, encryption, and Infrastructure as Code provide additional security, management, monitoring, and operational capabilities.
+
+This architecture establishes the foundation for BallotOnline's transition from traditional on-premises infrastructure to a scalable and manageable AWS cloud environment.
 
 ---
 
